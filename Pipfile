@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+click = "*"
+redis = "*"
+boto3 = "*"
+pyyaml = "*"
+boto3-stubs = {extras = ["secretsmanager"], version = "*"}
+table2ascii = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
