@@ -26,6 +26,7 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
+    export AWS_REGION=eu-west-2
     pip install pytest pytest-cov pytest-azurepipelines
     pytest
   displayName: 'pytest'
