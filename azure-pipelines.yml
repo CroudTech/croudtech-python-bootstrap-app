@@ -4,52 +4,62 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 trigger:
-- main
+  - main
 
 pool:
   vmImage: ubuntu-latest
-strategy:
-  matrix:
-    Python38:
-      python.version: '3.8'
+
 variables:
-- group: "package_managers"
-steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$(python.version)'
-  displayName: 'Use Python $(python.version)'
+  - group: "package_managers"
+  - name: python_version
+    value: 3.8
+jobs:
+  - job: test
+    displayName: Test
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "$(python.version)"
+        displayName: "Use Python $(python.version)"
 
-- script: |
-    python -m pip install --upgrade pip
-    pip install -r requirements.txt
-  displayName: 'Install dependencies'
+      - script: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        displayName: "Install dependencies"
 
-- script: |
-    export AWS_DEFAULT_REGION=eu-west-2
-    pip install pytest pytest-cov pytest-azurepipelines
-    pytest
-  displayName: 'pytest'
-- task: gitversion/setup@0
-  displayName: Install GitVersion
-  inputs:
-    versionSpec: 5.x
-- task: gitversion/execute@0
-  displayName: Use GitVersion
-- script: | 
-    python -m build
-
-- task: UploadPackage@1
-  inputs:
-    distdir: '$(Build.ArtifactStagingDirectory)/dist'
-    repository: 'pypi'
-    username: '$(pypi_username)'
-    password: '${pypi_password}'
-    pypirc: 'config'
-- task: gitreleasemanager/addasset@0
-  inputs:
-    owner: 'CroudTech'
-    repository: '$(Build.Repository.Name)'
-    token: 'GitHubCroudControl'
-    tagName: '$(semVer)'
-    assets: '/dist'
+      - script: |
+          export AWS_DEFAULT_REGION=eu-west-2
+          pip install pytest pytest-cov pytest-azurepipelines
+          pytest
+        displayName: "pytest"
+  - job: build
+    displayName: Build
+    dependsOn: test
+    condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "$(python.version)"
+        displayName: "Use Python $(python.version)"
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
+        inputs:
+          versionSpec: 5.x
+      - task: gitversion/execute@0
+        displayName: Use GitVersion
+      - script: |
+          python -m build
+      - task: UploadPackage@1
+        inputs:
+          distdir: "$(Build.ArtifactStagingDirectory)/dist"
+          repository: "pypi"
+          username: "$(pypi_username)"
+          password: "${pypi_password}"
+          pypirc: "config"
+      - task: gitreleasemanager/addasset@0
+        inputs:
+          owner: "CroudTech"
+          repository: "$(Build.Repository.Name)"
+          token: "GitHubCroudControl"
+          tagName: "$(semVer)"
+          assets: "/dist"
