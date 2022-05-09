@@ -50,13 +50,11 @@ jobs:
       - script: |
           pip install -r requirements.dev.txt
           python -m build
-      - task: UploadPackage@1
+      - task: PyPIPublisher@0
         inputs:
-          distdir: "$(Build.ArtifactStagingDirectory)/dist"
-          repository: "pypi"
-          username: "$(pypi_username)"
-          password: "${pypi_password}"
-          pypirc: "config"
+          pypiConnection: 'PyPi'
+          packageDirectory: '$(Build.ArtifactStagingDirectory)/dist'
+          alsoPublishWheel: true
       - task: gitreleasemanager/addasset@0
         inputs:
           owner: "CroudTech"
