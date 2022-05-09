@@ -61,4 +61,4 @@ jobs:
           repository: "$(Build.Repository.Name)"
           token: "GitHubCroudControl"
           tagName: "$(semVer)"
-          assets: "/dist"
+          assets: "$(Build.ArtifactStagingDirectory)/dist"
