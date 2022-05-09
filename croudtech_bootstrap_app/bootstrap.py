@@ -10,7 +10,7 @@ else:
 from .redis_config import RedisConfig
 from botocore import endpoint
 from click._compat import open_stream
-from collections import MutableMapping
+from collections.abc import MutableMapping
 import boto3
 import botocore
 import click
@@ -142,21 +142,19 @@ class BootstrapParameters:
                 )
             else:
                 raise Exception("Couldn't allocate Redis Database")
+        return parameters
 
     def get_params(self):
-        app_values = self.app.convert_flatten(self.app.remote_values)
-        app_secrets = self.app.remote_secrets
-        app_params = {**app_values, **app_secrets}
+        app_params = self.app.get_remote_params()
         
-        if self.include_common:
-            common_values = self.common_app.convert_flatten(self.common_app.remote_values)
-            common_secrets = self.common_app.remote_secrets           
-            common_params = {**common_values, **common_secrets}
-            return {**common_params, **app_params}
+        if self.include_common:          
+            common_params = self.common_app.get_remote_params()
+            app_params = {**common_params, **app_params}
         return self.parse_params(app_params)          
 
     def params_to_env(self, export=False):
         strings = []
+        print(self.get_params())
         for parameter, value in self.get_params().items():
             os.environ[parameter] = str(value)
             prefix = "export " if export else ""
@@ -255,6 +253,16 @@ class BootstrapApp:
             self._remote_values = self.fetch_from_s3()
                 
         return self._remote_values
+
+    def get_local_params(self):
+        app_values = self.convert_flatten(self.local_values)
+        app_secrets = self.convert_flatten(self.local_secrets)
+        return {**app_values, **app_secrets}
+
+    def get_remote_params(self):
+        app_values = self.convert_flatten(self.remote_values)
+        app_secrets = self.convert_flatten(self.remote_secrets)
+        return {**app_values, **app_secrets}
 
     def get_flattened_secrets(self) -> typing.Dict[str, Any]:
         return self.convert_flatten(self.local_secrets)             
@@ -448,7 +456,7 @@ class BootstrapManager:
                 app.push_secrets()
 
     @property
-    def environments(self):
+    def environments(self) -> typing.Dict[str, BootstrapEnvironment]:
         if not hasattr(self, '_environments'):
             self._environments = {}
             for item in os.listdir(self.values_path_real):
