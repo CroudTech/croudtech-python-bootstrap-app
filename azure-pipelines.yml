@@ -8,7 +8,14 @@ trigger:
 
 pool:
   vmImage: ubuntu-latest
-
+resources:
+  repositories:
+  - repository: templates
+    type: github
+    name: CroudTech/devops-azure-pipelines-step-templates
+    ref: master
+    endpoint: CroudTech
+  - repository: self
 variables:
   - group: "package_managers"
   - name: python_version
@@ -51,3 +58,14 @@ jobs:
           pip install -r requirements.dev.txt
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
+  - job: GithubRelease
+    dependsOn: CreateChangeSet
+    displayName: GithubRelease
+    steps:
+    - template: release/github-release.yaml@templates
+      parameters:
+        semVer: $(semVer)
+        github_access_token: $(github_access_token)
+        github_org: CroudTech
+        github_repo: croudtech-python-bootstrap-app
+      
