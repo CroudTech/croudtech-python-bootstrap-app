@@ -36,7 +36,7 @@ steps:
 - task: gitversion/execute@0
   displayName: Use GitVersion
 - script: | 
-  python -m build
+    python -m build
 
 - task: UploadPackage@1
   inputs:
