@@ -51,10 +51,3 @@ jobs:
           pip install -r requirements.dev.txt
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
-      - task: gitreleasemanager/addasset@0
-        inputs:
-          owner: "CroudTech"
-          repository: "$(Build.Repository.Name)"
-          token: "GitHubCroudControl"
-          tagName: "$(semVer)"
-          assets: "$(Build.SourcesDirectory)/dist"
