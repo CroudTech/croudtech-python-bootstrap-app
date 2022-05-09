@@ -47,14 +47,13 @@ jobs:
           versionSpec: 5.x
       - task: gitversion/execute@0
         displayName: Use GitVersion
-      - script: |
-          pip install -r requirements.dev.txt
-          python -m build
-      - task: PyPIPublisher@0
+      - task: TwineAuthenticate@1
         inputs:
-          pypiConnection: 'PyPi'
-          packageDirectory: '$(Build.SourcesDirectory)/dist'
-          alsoPublishWheel: true
+          pythonUploadServiceConnection: PyPi
+      - script: |
+          export SEMVER=$(semVer)
+          pip install -r requirements.dev.txt
+          python setup.py clean sdist bdist upload      
       - task: gitreleasemanager/addasset@0
         inputs:
           owner: "CroudTech"
