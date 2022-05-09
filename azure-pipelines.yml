@@ -19,8 +19,8 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          versionSpec: "$(python.version)"
-        displayName: "Use Python $(python.version)"
+          versionSpec: "$(python_version)"
+        displayName: "Use Python $(python_version)"
 
       - script: |
           python -m pip install --upgrade pip
@@ -39,8 +39,8 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          versionSpec: "$(python.version)"
-        displayName: "Use Python $(python.version)"
+          versionSpec: "$(python_version)"
+        displayName: "Use Python $(python_version)"
       - task: gitversion/setup@0
         displayName: Install GitVersion
         inputs:
