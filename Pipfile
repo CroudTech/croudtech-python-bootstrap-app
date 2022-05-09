@@ -12,6 +12,8 @@ boto3-stubs = {extras = ["secretsmanager"], version = "*"}
 table2ascii = "*"
 
 [dev-packages]
+autopep8 = "*"
+build = "*"
 
 [requires]
 python_version = "3.8"

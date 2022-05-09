@@ -29,16 +29,15 @@ steps:
     pip install pytest pytest-cov pytest-azurepipelines
     pytest
   displayName: 'pytest'
-- task: BuildSDist@1
-  inputs:
-    setuppy: 'setup.py'
-    outputdir: '$(Build.ArtifactStagingDirectory)/dist'
 - task: gitversion/setup@0
   displayName: Install GitVersion
   inputs:
     versionSpec: 5.x
 - task: gitversion/execute@0
   displayName: Use GitVersion
+- script: | 
+  python -m build
+
 - task: UploadPackage@1
   inputs:
     distdir: '$(Build.ArtifactStagingDirectory)/dist'
