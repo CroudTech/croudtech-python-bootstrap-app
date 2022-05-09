@@ -50,10 +50,10 @@ jobs:
       - task: TwineAuthenticate@1
         inputs:
           pythonUploadServiceConnection: croudtech-bootstrap
-      - task: PyPIPublisher@0
-        inputs:
-          pypiConnection: 'PyPi'
-          packageDirectory: '$(Build.Repository.LocalPath)'    
+      - script: | 
+          pip install -r requirements.dev.txt
+          python -m build
+          python -m twine upload ./dist/*   
       - task: gitreleasemanager/addasset@0
         inputs:
           owner: "CroudTech"
