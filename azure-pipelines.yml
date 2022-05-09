@@ -50,10 +50,10 @@ jobs:
       - task: TwineAuthenticate@1
         inputs:
           pythonUploadServiceConnection: croudtech-bootstrap
-      - script: |
-          export SEMVER=$(semVer)
-          pip install -r requirements.dev.txt
-          python setup.py clean sdist bdist upload      
+      - task: PyPIPublisher@0
+        inputs:
+          pypiConnection: 'PyPi'
+          packageDirectory: '$(Build.Repository.LocalPath)'    
       - task: gitreleasemanager/addasset@0
         inputs:
           owner: "CroudTech"
