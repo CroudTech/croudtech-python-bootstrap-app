@@ -59,7 +59,7 @@ jobs:
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
   - job: GithubRelease
-    dependsOn: CreateChangeSet
+    dependsOn: build
     displayName: GithubRelease
     steps:
     - template: release/github-release.yaml@templates
