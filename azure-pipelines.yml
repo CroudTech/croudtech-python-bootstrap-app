@@ -49,7 +49,7 @@ jobs:
         displayName: Use GitVersion
       - task: TwineAuthenticate@1
         inputs:
-          pythonUploadServiceConnection: PyPi
+          pythonUploadServiceConnection: croudtech-bootstrap
       - script: |
           export SEMVER=$(semVer)
           pip install -r requirements.dev.txt
