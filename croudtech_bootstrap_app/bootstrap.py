@@ -213,7 +213,17 @@ class BootstrapApp:
                 Key = self.s3_key
             )
             self._s3_data = yaml.load(response["Body"], Loader=yaml.SafeLoader)
+            for key, value in self._s3_data.items():
+                self._s3_data[key] = self.parse_value(value)
+                
         return self._s3_data
+
+    def parse_value(self, value):
+        try:
+            parsed_value = json.dumps(json.loads(value))
+        except:
+            parsed_value = value
+        return str(parsed_value).strip()
 
     @property
     def local_secrets(self) -> typing.Dict[str, Any]:
