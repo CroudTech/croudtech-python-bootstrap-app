@@ -154,7 +154,6 @@ class BootstrapParameters:
 
     def params_to_env(self, export=False):
         strings = []
-        print(self.get_params())
         for parameter, value in self.get_params().items():
             os.environ[parameter] = str(value)
             prefix = "export " if export else ""
