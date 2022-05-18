@@ -283,7 +283,7 @@ class BootstrapApp:
         for secret, value in self.get_flattened_secrets().items():
             secret_value = str(value)
             if len(secret_value) == 0:
-                secret_value == "__EMPTY__"
+                secret_value = "__EMPTY__"
             try:
                 response = self.secrets_client.create_secret(
                     Name=self.get_secret_id(secret),
@@ -305,6 +305,7 @@ class BootstrapApp:
                     SecretId=self.get_secret_id(secret),
                     SecretString=secret_value,                    
                 )
+            self.environment.manager.click.secho(f"Pushed {self.environment.name}/{self.name} {secret}")
             
 
     def fetch_secret_value(self, secret):
