@@ -281,10 +281,13 @@ class BootstrapApp:
 
     def push_secrets(self):
         for secret, value in self.get_flattened_secrets().items():
+            secret_value = str(value)
+            if len(secret_value) == 0:
+                secret_value == "__EMPTY__"
             try:
                 response = self.secrets_client.create_secret(
                     Name=self.get_secret_id(secret),
-                    SecretString=str(value),
+                    SecretString=secret_value,
                     Tags=[
                         {
                             'Key': 'Environment',
@@ -300,7 +303,7 @@ class BootstrapApp:
             except self.secrets_client.exceptions.ResourceExistsException as err:
                 response = self.secrets_client.update_secret(
                     SecretId=self.get_secret_id(secret),
-                    SecretString=str(value),                    
+                    SecretString=secret_value,                    
                 )
             
 
@@ -308,6 +311,9 @@ class BootstrapApp:
         response = self.secrets_client.get_secret_value(
             SecretId=secret["ARN"]
         )
+        secret_value = response["SecretString"]
+        if secret_value == "__EMPTY__":
+            return ""
         return response["SecretString"]
 
     def get_remote_secrets(self) -> typing.Dict[str, str]:
