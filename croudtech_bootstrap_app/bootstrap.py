@@ -152,6 +152,14 @@ class BootstrapParameters:
             app_params = {**common_params, **app_params}
         return self.parse_params(app_params)          
 
+    def get_raw_params(self):
+        app_params = self.app.get_remote_params(flatten=False)
+        
+        if self.include_common:          
+            common_params = self.common_app.get_remote_params(flatten=False)
+            app_params = {**common_params, **app_params}
+        return self.parse_params(app_params)          
+
     def params_to_env(self, export=False):
         strings = []
         for parameter, value in self.get_params().items():
@@ -206,13 +214,15 @@ class BootstrapApp:
     def s3_key(self):
         return os.path.join("", self.environment.name, ".".join([self.name, "yaml"]))        
     
-    def fetch_from_s3(self) -> typing.Dict[str, Any]:
+    def fetch_from_s3(self, raw=False) -> typing.Dict[str, Any]:
         if not hasattr(self, "_s3_data"):
             response = self.s3_client.get_object(
                 Bucket = self.environment.manager.bucket_name,
                 Key = self.s3_key
             )
             self._s3_data = yaml.load(response["Body"], Loader=yaml.SafeLoader)
+            if raw:
+                return self._s3_data
             for key, value in self._s3_data.items():
                 self._s3_data[key] = self.parse_value(value)
                 
@@ -259,7 +269,7 @@ class BootstrapApp:
     @property
     def remote_values(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_remote_values"):
-            self._remote_values = self.fetch_from_s3()
+            self._remote_values = self.fetch_from_s3(self.raw)
                 
         return self._remote_values
 
@@ -268,9 +278,15 @@ class BootstrapApp:
         app_secrets = self.convert_flatten(self.local_secrets)
         return {**app_values, **app_secrets}
 
-    def get_remote_params(self):
-        app_values = self.convert_flatten(self.remote_values)
-        app_secrets = self.convert_flatten(self.remote_secrets)
+    def get_remote_params(self, flatten=True):
+        if flatten:
+            self.raw = False
+            app_values = self.convert_flatten(self.remote_values)
+            app_secrets = self.convert_flatten(self.remote_secrets)
+        else:
+            self.raw = True
+            app_values = self.remote_values
+            app_secrets = self.remote_secrets
         return {**app_values, **app_secrets}
 
     def get_flattened_secrets(self) -> typing.Dict[str, Any]:

@@ -121,9 +121,9 @@ def get_config(
     output = "Invalid output format"
 
     if output_format == "json":
-        output = json.dumps(bootstrap.get_params(), indent=2)
+        output = json.dumps(bootstrap.get_raw_params(), indent=2)
     elif output_format == "yaml":
-        output = dump(bootstrap.get_params(), Dumper=Dumper)
+        output = dump(bootstrap.get_raw_params(), Dumper=Dumper)
     elif output_format == "environment":
         output = bootstrap.params_to_env()
     elif output_format == "environment-export":
