@@ -58,6 +58,9 @@ jobs:
           pip install -r requirements.dev.txt
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
+          pip install pyinstaller
+          pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
   - job: GithubRelease
     dependsOn: build
     displayName: GithubRelease
