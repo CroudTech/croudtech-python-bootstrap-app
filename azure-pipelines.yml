@@ -65,6 +65,11 @@ jobs:
     dependsOn: build
     displayName: GithubRelease
     steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.8'
+        addToPath: true
+        architecture: 'x64'
     - script: | 
         pip install -r requirements.dev.txt
         pip install pyinstaller
