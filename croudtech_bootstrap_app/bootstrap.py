@@ -133,7 +133,7 @@ class BootstrapParameters:
     def parse_params(self, parameters):
         if self.parse_redis:
             redis_db, redis_host, redis_port = self.find_redis_config(parameters, allocate=True)
-            if redis_db:
+            if redis_db or redis_db == 0:
                 parameters["REDIS_DB"] = redis_db
                 parameters["REDIS_URL"] = "redis://%s:%s/%s" % (
                     redis_host,
