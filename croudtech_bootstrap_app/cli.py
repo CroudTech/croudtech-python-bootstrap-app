@@ -160,6 +160,30 @@ def put_config(ctx, prefix, region, delete_first, values_path):
 @click.pass_context
 @click.option("--prefix", default="/appconfig", help="The path prefix")
 @click.option("--region", default="eu-west-2", help="The AWS region")
+@click.option(
+    "--delete-first",
+    is_flag=True,
+    default=False,
+    help="Delete the values in this path before pushing (useful for cleanup)",
+)
+@click.argument("values_path")
+def cleanup_secrets(ctx, prefix, region, delete_first, values_path):
+    bootstrap_manager = BootstrapManager(
+        prefix=prefix,
+        region=region,
+        click=click,
+        values_path=values_path,
+        bucket_name=ctx.obj["BUCKET_NAME"],
+        endpoint_url=ctx.obj["AWS_ENDPOINT_URL"],
+    )
+
+    bootstrap_manager.cleanup_secrets()
+
+
+@cli.command()
+@click.pass_context
+@click.option("--prefix", default="/appconfig", help="The path prefix")
+@click.option("--region", default="eu-west-2", help="The AWS region")
 def list_apps(ctx, prefix, region):
     bootstrap_manager = BootstrapManager(
         prefix=prefix,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ast import For
 
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
@@ -235,6 +236,15 @@ class BootstrapApp:
             parsed_value = value
         return str(parsed_value).strip()
 
+    def cleanup_secrets(self):
+        local_secret_keys = self.local_secrets.keys()
+        remote_secret_keys = self.remote_secret_records.keys()
+        orphaned_secrets = [item for item in remote_secret_keys if item not in local_secret_keys]
+        for secret in orphaned_secrets:
+            secret_record = self.remote_secrets[secret]           
+            self.secrets_client.delete_secret(SecretId=secret_record["ARN"], ForceDeleteWithoutRecovery=True)
+            logger.info(f"Deleted orphaned secret {secret_record['ARN']}")
+
     @property
     def local_secrets(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_secrets"):
@@ -263,6 +273,13 @@ class BootstrapApp:
     def remote_secrets(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_remote_secrets"):
             self._remote_secrets = self.get_remote_secrets()
+                
+        return self._remote_secrets
+
+    @property
+    def remote_secret_records(self) -> typing.Dict[str, Any]:
+        if not hasattr(self, "_remote_secrets"):
+            self._remote_secrets = self.get_remote_secret_records()
                 
         return self._remote_secrets
 
@@ -333,11 +350,9 @@ class BootstrapApp:
             return ""
         return response["SecretString"]
 
-    def get_remote_secrets(self) -> typing.Dict[str, str]:
-        paginator = self.secrets_client.get_paginator('list_secrets')
-        secrets = {}
-        response = paginator.paginate(
-            Filters=[
+    @property
+    def remote_secret_filters(self):
+        return [
                 {
                     'Key': 'tag-key',
                     'Values': [
@@ -362,12 +377,31 @@ class BootstrapApp:
                         self.name
                     ]
                 },
-            ],
+            ]
+
+    def get_remote_secrets(self) -> typing.Dict[str, str]:
+        paginator = self.secrets_client.get_paginator('list_secrets')
+        secrets = {}
+        response = paginator.paginate(
+            Filters=self.remote_secret_filters,
         )
         for page in response:
             for secret in page["SecretList"]:
                 secret_key = os.path.split(secret["Name"])[-1]
                 secrets[secret_key] = self.fetch_secret_value(secret)
+
+        return secrets
+
+    def get_remote_secret_records(self):
+        paginator = self.secrets_client.get_paginator('list_secrets')
+        secrets = {}
+        response = paginator.paginate(
+            Filters=self.remote_secret_filters,
+        )
+        for page in response:
+            for secret in page["SecretList"]:
+                secret_key = os.path.split(secret["Name"])[-1]
+                secrets[secret_key] = secret
 
         return secrets
 
@@ -481,11 +515,17 @@ class BootstrapManager:
 
     def put_config(self, delete_first):
         self.cleanup_values()
+        self.cleanup_secrets()
         for environment_name, environment in self.environments.items():
             for app_name, app in environment.apps.items():
                 # pass
                 app.upload_to_s3()
                 app.push_secrets()
+
+    def cleanup_secrets(self):
+        for environment_name, environment in self.environments.items():
+            for app_name, app in environment.apps.items():
+                app.cleanup_secrets()
 
     @property
     def environments(self) -> typing.Dict[str, BootstrapEnvironment]:
