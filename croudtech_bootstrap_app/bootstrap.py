@@ -338,6 +338,8 @@ class BootstrapApp:
                     SecretId=self.get_secret_id(secret),
                     SecretString=secret_value,                    
                 )
+            except:
+                logger.error(f"Failed to push secret {secret}")
             self.environment.manager.click.secho(f"Pushed {self.environment.name}/{self.name} {secret}")
             
 
