@@ -2,12 +2,15 @@ import logging
 import os
 import sys
 
+
 def init():
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO")))
     handler = logging.StreamHandler(sys.stdout)
     # handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logging.getLogger("boto3").setLevel(logging.CRITICAL)
