@@ -12,12 +12,20 @@ table2ascii = "*"
 types-pyyaml = "*"
 
 [dev-packages]
-boto3-stubs = {extras = ["secretsmanager", "s3"], version = "*"}
 autopep8 = "*"
+black = "*"
+boto3-stubs = {extras = ["secretsmanager", "s3"], version = "*"}
 build = "*"
-twine = "*"
-isort = "*"
+deepdiff = "*"
 flake8 = "*"
+flake8-bugbear = "*"
+isort = "*"
+pre-commit = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+pytest-xdist = "*"
+twine = "*"
 
 [requires]
 python_version = "3.8"
