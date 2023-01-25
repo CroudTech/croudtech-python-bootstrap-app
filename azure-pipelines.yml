@@ -33,7 +33,7 @@ jobs:
           python_version: 3.9
   - job: build
     displayName: Build
-    dependsOn: test
+    dependsOn: PythonTest
     condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
     steps:
       - task: UsePythonVersion@0
