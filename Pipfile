@@ -6,14 +6,25 @@ name = "pypi"
 [packages]
 click = "*"
 redis = "*"
-boto3 = "*"
+boto3 = "~=1.2"
 pyyaml = "*"
-boto3-stubs = {extras = ["secretsmanager"], version = "*"}
 table2ascii = "*"
+types-pyyaml = "*"
 
 [dev-packages]
 autopep8 = "*"
+black = "*"
+boto3-stubs = {extras = ["secretsmanager", "s3"], version = "*"}
 build = "*"
+deepdiff = "*"
+flake8 = "*"
+flake8-bugbear = "*"
+isort = "*"
+pre-commit = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+pytest-xdist = "*"
 twine = "*"
 
 [requires]
