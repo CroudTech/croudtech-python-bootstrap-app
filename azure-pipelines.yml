@@ -21,21 +21,16 @@ variables:
   - name: python_version
     value: 3.8
 jobs:
-  - stage: Test
-    pool:
-      vmImage: ubuntu-latest
-    displayName: Test
-    jobs:
-      - job: PythonTest
-        services:
-          postgres: postgres
-          redis: redis
-        steps:
-          - template: test/python-test.yaml@templates
-            parameters:
-              coverage: app,core,status
-              root_dir: ./
-              python_version: 3.9
+  - job: PythonTest
+    services:
+      postgres: postgres
+      redis: redis
+    steps:
+      - template: test/python-test.yaml@templates
+        parameters:
+          coverage: app,core,status
+          root_dir: ./
+          python_version: 3.9
   - job: build
     displayName: Build
     dependsOn: test
