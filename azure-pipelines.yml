@@ -91,6 +91,7 @@ jobs:
           disableAutoCwd: true
           workingDirectory: './cdk'
           inlineScript: |
+            ENVIRONMENT=Shared npx cdk deploy InitStack
             export GIT_ACCESS_TOKEN=$(git_access_token)
             export SEMVER=$(Build.BuildNumber)
             export ENVIRONMENT=Prelive
