@@ -10,38 +10,27 @@ pool:
   vmImage: ubuntu-18.04
 resources:
   repositories:
-  - repository: templates
-    type: github
-    name: CroudTech/devops-azure-pipelines-step-templates
-    ref: master
-    endpoint: CroudTech
-  - repository: self
+    - repository: templates
+      type: github
+      name: CroudTech/devops-azure-pipelines-step-templates
+      ref: master
+      endpoint: CroudTech
+    - repository: self
 variables:
   - group: "package_managers"
   - name: python_version
     value: 3.8
 jobs:
-  - job: test
-    displayName: Test
+  - job: PythonTest
     steps:
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: "$(python_version)"
-        displayName: "Use Python $(python_version)"
-
-      - script: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-        displayName: "Install dependencies"
-
-      - script: |
-          export AWS_DEFAULT_REGION=eu-west-2
-          pip install pytest pytest-cov pytest-azurepipelines
-          pytest
-        displayName: "pytest"
+      - template: test/python-test.yaml@templates
+        parameters:
+          coverage: app,core,status
+          root_dir: ./
+          python_version: 3.9
   - job: build
     displayName: Build
-    dependsOn: test
+    dependsOn: PythonTest
     condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
     steps:
       - task: UsePythonVersion@0
@@ -54,7 +43,7 @@ jobs:
           versionSpec: 5.x
       - task: gitversion/execute@0
         displayName: Use GitVersion
-      - script: | 
+      - script: |
           pip install -r requirements.dev.txt
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
@@ -111,20 +100,19 @@ jobs:
     dependsOn: build
     displayName: GithubRelease
     steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.8'
-        addToPath: true
-        architecture: 'x64'
-    - script: | 
-        pip install -r requirements.dev.txt
-        pip install pyinstaller
-        pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-        cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-    - template: release/github-release.yaml@templates
-      parameters:
-        semVer: $(semVer)
-        github_access_token: $(github_access_token)
-        github_org: CroudTech
-        github_repo: croudtech-python-bootstrap-app
-      
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "3.8"
+          addToPath: true
+          architecture: "x64"
+      - script: |
+          pip install -r requirements.dev.txt
+          pip install pyinstaller
+          pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
+      - template: release/github-release.yaml@templates
+        parameters:
+          semVer: $(semVer)
+          github_access_token: $(github_access_token)
+          github_org: CroudTech
+          github_repo: croudtech-python-bootstrap-app

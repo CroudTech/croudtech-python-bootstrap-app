@@ -1,10 +1,13 @@
-import redis
 import json
+from typing import Dict
+
+import redis
+
 from .metrics import Metrics
 
 
 class RedisConfig:
-    _redis_dbs = {}
+    _redis_dbs: Dict[int, redis.Redis] = {}
     _config_db = 15
     _allocated_dbs_key = "allocated_dbs"
 
@@ -72,11 +75,11 @@ class RedisConfig:
         return db
 
     def deallocate_db(self):
-        unused_dbs = self.get_unused_dbs()        
+        self.get_unused_dbs()
         db_config = self.redis_db_allocations
         if self.db_key in db_config:
             db = db_config[self.db_key]
-            del(db_config[self.db_key])
+            del db_config[self.db_key]
             self._redis_config.set(self._allocated_dbs_key, json.dumps(db_config))
 
             return True, db

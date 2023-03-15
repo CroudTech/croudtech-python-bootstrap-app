@@ -1,7 +1,12 @@
-import croudtech_bootstrap_app.bootstrap
-import click
 import os
-values_path = os.path.join(os.path.dirname(__file__), 'test_values')
+
+import click
+
+import croudtech_bootstrap_app.bootstrap
+
+values_path = os.path.join(os.path.dirname(__file__), "test_values")
+
+
 def test_manager():
     expected_values = {
         "TestEnv1": {
@@ -23,25 +28,30 @@ def test_manager():
                 "COMMONVALUE1": "blah2",
                 "COMMONSECRET1": "foo2",
             },
-        }
+        },
     }
-    manager = croudtech_bootstrap_app.bootstrap.BootstrapManager("/appconfig", "eu-west-2", click, values_path, "test")
-    expected_environments = ["TestEnv1", "TestEnv2"]
+    manager = croudtech_bootstrap_app.bootstrap.BootstrapManager(
+        "/appconfig", "eu-west-2", click, values_path, "test"
+    )
     for env_name, env in expected_values.items():
         assert env_name in manager.environments.keys()
         for app_name, app in env.items():
             assert app_name in manager.environments[env_name].apps.keys()
             for key, value in app.items():
-                assert key in manager.environments[env_name].apps[app_name].get_local_params().keys()
-                assert manager.environments[env_name].apps[app_name].get_local_params()[key] == value
+                assert (
+                    key
+                    in manager.environments[env_name]
+                    .apps[app_name]
+                    .get_local_params()
+                    .keys()
+                )
+                assert (
+                    manager.environments[env_name]
+                    .apps[app_name]
+                    .get_local_params()[key]
+                    == value
+                )
             # assert "APPVALUE1" in manager.environments[env].apps["TestApp"].local_values.keys()
             # assert  manager.environments[env].apps["TestApp"].local_values["APPVALUE1"] == "foo1"
             # assert "APPSECRET1" in manager.environments[env].apps["TestApp"].local_secrets.keys()
             # assert  manager.environments[env].apps["TestApp"].local_secrets["APPSECRET1"] == "foo1"
-        
-
-
-    
-    
-
-    

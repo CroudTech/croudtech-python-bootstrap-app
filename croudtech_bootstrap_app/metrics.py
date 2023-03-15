@@ -6,7 +6,7 @@ cloudwatch = boto3.client("cloudwatch")
 class Metrics:
     def put_redis_db_metric(self, app_key, redis_db, redis_host, environment_name):
         try:
-            response = cloudwatch.put_metric_data(
+            cloudwatch.put_metric_data(
                 MetricData=[
                     {
                         "MetricName": "Redis DB Allocations",
