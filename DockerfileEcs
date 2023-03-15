@@ -1,0 +1,18 @@
+FROM python:3.8-slim
+
+COPY Pipfile* /
+
+COPY . /source
+ARG SEMVER=1.0.0
+ENV SEMVER=$SEMVER
+
+WORKDIR /source
+RUN pip install --no-cache-dir --compile . && rm -fr /source
+  
+
+COPY ./docker /docker
+RUN chmod +x /docker/*
+
+WORKDIR /shared
+
+CMD ["/docker/create_env_file.sh"]

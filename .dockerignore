@@ -1,0 +1,10 @@
+*.egg-info
+dist
+test-output.xml
+__pycache__
+.git
+test
+build
+.mypy_cache
+.pytest_cache
+cdk
