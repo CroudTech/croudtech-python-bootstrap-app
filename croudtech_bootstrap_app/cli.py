@@ -211,7 +211,7 @@ def config_server(
             self.end_headers()
             for line in output.split("\n"):
                 self.wfile.write(bytes(line + "\n", "utf-8"))
-            raise KeyboardInterrupt()
+            # raise KeyboardInterrupt()
             
     
     webServer = HTTPServer(("0.0.0.0", int(server_port)), ConfigServer)
