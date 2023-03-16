@@ -227,6 +227,8 @@ class BootstrapApp:
             parsed_value = json.dumps(json.loads(value))
         except json.decoder.JSONDecodeError:
             parsed_value = value
+        except TypeError:
+            parsed_value = value
         return str(parsed_value).strip()
 
     def cleanup_secrets(self):
