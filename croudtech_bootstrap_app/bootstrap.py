@@ -232,7 +232,7 @@ class BootstrapApp:
         return str(parsed_value).strip()
 
     def cleanup_secrets(self):
-        local_secret_keys = self.local_secrets.keys()
+        local_secret_keys = self.get_flattened_secrets().items()
         remote_secret_keys = self.remote_secret_records.keys()
         orphaned_secrets = [
             item for item in remote_secret_keys if item not in local_secret_keys
