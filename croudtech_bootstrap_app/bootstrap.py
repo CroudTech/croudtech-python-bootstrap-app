@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import botocore.exceptions
+
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
     from mypy_boto3_secretsmanager import SecretsManagerClient
@@ -17,14 +19,20 @@ import typing
 from collections.abc import MutableMapping
 
 import boto3
+import botocore
 import click
 import yaml
+import time
+import re
 
 from croudtech_bootstrap_app.logging import init as initLogs
 
 from .redis_config import RedisConfig
 
 logger = initLogs()
+
+
+AWS_ENDPOINT_URL = os.getenv("AWS_ENDPOINT_URL", None)
 
 
 class Utils:
@@ -45,7 +53,7 @@ class BootstrapParameters:
         region="eu-west-2",
         include_common=True,
         use_sns=True,
-        endpoint_url=os.getenv("AWS_ENDPOINT_URL", None),
+        endpoint_url=AWS_ENDPOINT_URL,
         parse_redis=True,
     ):
         self.environment_name = environment_name
@@ -232,11 +240,13 @@ class BootstrapApp:
         return str(parsed_value).strip()
 
     def cleanup_secrets(self):
-        local_secret_keys = self.local_secrets.keys()
+        local_secret_keys = self.convert_flatten(self.local_secrets).keys()
         remote_secret_keys = self.remote_secret_records.keys()
+
         orphaned_secrets = [
-            item for item in remote_secret_keys if item not in local_secret_keys
+            item for item in remote_secret_keys if re.sub(r"(-[a-zA-Z]{6})$", "", item) not in local_secret_keys
         ]
+
         for secret in orphaned_secrets:
             secret_record = self.remote_secrets[secret]
             self.secrets_client.delete_secret(
@@ -311,14 +321,59 @@ class BootstrapApp:
     def get_secret_id(self, secret):
         return os.path.join("", self.environment.name, self.name, secret)
 
+    def create_secret(self, Name, SecretString, Tags, ForceOverwriteReplicaSecret):
+        print(f"Creating Secret {Name}")
+        try:
+            self.secrets_client.create_secret(
+                Name=Name,
+                SecretString=SecretString,
+                Tags=[
+                    {"Key": "Environment", "Value": self.environment.name},
+                    {"Key": "App", "Value": self.name},
+                ],
+                ForceOverwriteReplicaSecret=True,
+            )
+        except self.secrets_client.exceptions.ResourceExistsException:
+            self.secrets_client.update_secret(
+                SecretId=Name,
+                SecretString=SecretString,
+            )
+
+    def backoff_with_custom_exception(self, func, exception, message_prefix="", max_attempts=5, base_delay=1, max_delay=10, factor=2, *args, **kwargs):
+        attempts = 0
+        delay = base_delay
+
+        while attempts < max_attempts:
+            try:
+                result = func(*args, **kwargs)
+                return result  # Return result if successful
+            except exception as e:
+                print(f"{message_prefix} Attempt {attempts+1} failed: {e}")
+                attempts += 1
+                if attempts == max_attempts:
+                    raise  # If all attempts fail, raise the last exception
+
+                # Backoff logic
+                delay = min(delay * factor, max_delay)
+                print(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+
     def push_secrets(self):
         for secret, value in self.get_flattened_secrets().items():
             sec_val = str(value)
             if len(sec_val) == 0:
                 sec_val = "__EMPTY__"
+            secret_id = self.get_secret_id(secret)
             try:
-                self.secrets_client.create_secret(
-                    Name=self.get_secret_id(secret),
+                self.backoff_with_custom_exception(
+                    self.create_secret,
+                    exception=botocore.exceptions.ClientError,
+                    message_prefix=f"Creating/Updating secret {secret_id}",
+                    max_attempts=5,
+                    base_delay=1,
+                    max_delay=10,
+                    factor=2,
+                    Name=secret_id,
                     SecretString=sec_val,
                     Tags=[
                         {"Key": "Environment", "Value": self.environment.name},
@@ -326,16 +381,12 @@ class BootstrapApp:
                     ],
                     ForceOverwriteReplicaSecret=True,
                 )
-            except self.secrets_client.exceptions.ResourceExistsException:
-                self.secrets_client.update_secret(
-                    SecretId=self.get_secret_id(secret),
-                    SecretString=sec_val,
-                )
+
             except Exception as err:
-                logger.error(f"Failed to push secret {secret}")
+                logger.error(f"Failed to push secret {secret_id}")
                 raise err
             self.environment.manager.click.secho(
-                f"Pushed {self.environment.name}/{self.name} {secret}"
+                f"Pushed {secret_id}"
             )
 
     def fetch_secret_value(self, secret):
@@ -430,7 +481,7 @@ class BootstrapEnvironment:
         return self._apps
 
     def copy_to_temp(self):
-        for app_name, app in self.apps.items():
+        for _app_name, app in self.apps.items():
             shutil.copy(app.path, self.temp_dir)
 
 
@@ -444,7 +495,7 @@ class BootstrapManager:
         click,
         values_path,
         bucket_name,
-        endpoint_url=os.getenv("AWS_ENDPOINT_URL", None),
+        endpoint_url=AWS_ENDPOINT_URL,
     ):
         self.prefix = prefix
         self.region = region
@@ -506,15 +557,15 @@ class BootstrapManager:
     def put_config(self, delete_first):
 
         self.cleanup_secrets()
-        for environment_name, environment in self.environments.items():
-            for app_name, app in environment.apps.items():
+        for _environment_name, environment in self.environments.items():
+            for _app_name, app in environment.apps.items():
                 # pass
                 app.upload_to_s3()
                 app.push_secrets()
 
     def cleanup_secrets(self):
-        for environment_name, environment in self.environments.items():
-            for app_name, app in environment.apps.items():
+        for _environment_name, environment in self.environments.items():
+            for _app_name, app in environment.apps.items():
                 app.cleanup_secrets()
 
     @property
