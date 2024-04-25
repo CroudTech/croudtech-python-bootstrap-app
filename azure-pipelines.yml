@@ -5,6 +5,8 @@
 
 trigger:
   - main
+  - chore/*
+  - feature/*
 
 pool:
   vmImage: ubuntu-latest
@@ -27,7 +29,8 @@ jobs:
         parameters:
           coverage: app,core,status
           root_dir: ./
-          python_version: 3.9
+          python_version: 3.12
+          pipenv_version: 2023.12.1
   - job: build
     displayName: Build
     dependsOn: PythonTest

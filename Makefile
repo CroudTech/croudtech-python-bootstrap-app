@@ -2,7 +2,7 @@
 #  (e.g. ENV=production make setup).
 ENV ?= local
 # PYTHON specifies the python binary to use when creating virtualenv
-PYTHON ?= python3.9
+PYTHON ?= python3.12
 
 # Editor can be defined globally but defaults to nano
 EDITOR ?= nano
