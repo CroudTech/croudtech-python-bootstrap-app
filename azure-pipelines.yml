@@ -53,51 +53,6 @@ jobs:
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-  - job: BuildImage
-    displayName: Build Image
-    condition: and(succeeded(), in(variables['Build.SourceBranchName'], 'integration',
-      'master', 'main'))
-    steps:
-      - task: UpdateBuildNumber@0
-        inputs:
-          buildNumber: $(Build.SourceBranchName)_$(Build.BuildNumber)
-      - task: NodeTool@0
-        inputs:
-          versionSource: 'spec'
-          versionSpec: '18.14.x'
-      - task: Yarn@2
-        inputs:
-          ProjectDirectory: './cdk'
-      - task: AWSShellScript@1
-        displayName: Integration Build
-        condition: and(succeeded(), in(variables['Build.SourceBranchName'], 'integration'))
-        inputs:
-          awsCredentials: 'AWS_Development'
-          regionName: 'eu-west-2'
-          scriptType: 'inline'
-          disableAutoCwd: true
-          workingDirectory: './cdk'
-          inlineScript: |
-            ENVIRONMENT=Shared npx cdk deploy InitStack
-            export SEMVER=$(Build.BuildNumber)
-            export ENVIRONMENT=Integration
-            export PIPELINE_TYPE=build
-            npx cdk deploy BuildStack --require-approval=never
-      - task: AWSShellScript@1
-        displayName: Production / Prelive Build (replicates to production ECR repo)
-        condition: and(succeeded(), in(variables['Build.SourceBranchName'], 'master', 'main'))
-        inputs:
-          awsCredentials: 'AWS_Development'
-          regionName: 'eu-west-2'
-          scriptType: 'inline'
-          disableAutoCwd: true
-          workingDirectory: './cdk'
-          inlineScript: |
-            ENVIRONMENT=Shared npx cdk deploy InitStack
-            export SEMVER=$(Build.BuildNumber)
-            export ENVIRONMENT=Prelive
-            export PIPELINE_TYPE=build
-            npx cdk deploy BuildStack --require-approval=never
   - job: GithubRelease
     dependsOn: build
     displayName: GithubRelease
