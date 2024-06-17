@@ -73,7 +73,7 @@ twine==5.0.0; python_version >= '3.8'
 types-awscrt==0.20.9; python_version >= '3.7' and python_version < '4.0'
 types-pyyaml==6.0.12.20240311; python_version >= '3.8'
 types-s3transfer==0.10.1; python_version >= '3.8' and python_version < '4.0'
-urllib3==2.2.1; python_version >= '3.10'
+urllib3==2.2.2; python_version >= '3.10'
 virtualenv==20.26.0; python_version >= '3.7'
 wcwidth==0.2.13
 zipp==3.18.1; python_version >= '3.8'
