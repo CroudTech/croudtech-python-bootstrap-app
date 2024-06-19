@@ -413,7 +413,7 @@ class BootstrapApp:
     def push_parameters(self):
         for parameter, value in self.get_flattened_parameters().items():
             parameter_value = str(value)
-            if (value_size := sys.getsizeof(parameter_value)) > 4096:
+            if (value_size := sys.getsizeof(parameter_value)) > 4096 or not parameter_value:
                 self.environment.manager.click.secho(
                     f"Parameter: {parameter} value is too large to store ({value_size})"
                 )
