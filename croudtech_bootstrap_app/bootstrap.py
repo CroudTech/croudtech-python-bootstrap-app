@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 from typing import TYPE_CHECKING, Any
 
 import botocore.exceptions
@@ -195,6 +197,10 @@ class BootstrapApp:
         return self.environment.manager.s3_client
 
     @property
+    def ssm_client(self) -> SSMClient:
+        return self.environment.manager.ssm_client
+
+    @property
     def secrets_client(self) -> SecretsManagerClient:
         return self.environment.manager.secrets_client
 
@@ -238,6 +244,19 @@ class BootstrapApp:
         except TypeError:
             parsed_value = value
         return str(parsed_value).strip()
+
+    def cleanup_ssm_parameters(self):
+        local_value_keys = set(self.convert_flatten(self.local_values).keys() or [])
+        remote_value_keys = set(self.remote_ssm_parameters.keys() or [])
+        
+        orphaned_ssm_parameters = remote_value_keys - local_value_keys
+
+        for parameter in orphaned_ssm_parameters:
+            if parameter_record := self.remote_ssm_parameters.get(parameter):
+                self.ssm_client.delete_parameter(
+                    Name=parameter_record["Name"]
+                )
+                logger.info(f"Deleted orphaned ssm parameter {parameter}")
 
     def cleanup_secrets(self):
         local_secret_keys = self.convert_flatten(self.local_secrets).keys()
@@ -293,6 +312,13 @@ class BootstrapApp:
         return self._remote_secrets
 
     @property
+    def remote_ssm_parameters(self) -> typing.Dict[str, Any]:
+        if not hasattr(self, "_remote_parameters"):
+            self._remote_parameters = self.get_remote_ssm_parameters()
+            
+        return self._remote_parameters
+
+    @property
     def remote_values(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_remote_values"):
             self._remote_values = self.fetch_from_s3(self.raw)
@@ -315,11 +341,32 @@ class BootstrapApp:
             app_secrets = self.remote_secrets
         return {**app_values, **app_secrets}
 
+    def get_flattened_parameters(self) -> typing.Dict[str, Any]:
+        return self.convert_flatten(self.local_values)
+
     def get_flattened_secrets(self) -> typing.Dict[str, Any]:
         return self.convert_flatten(self.local_secrets)
+    
+    def get_parameter_id(self, parameter):
+        return f"/{self.get_secret_id(parameter)}"
 
     def get_secret_id(self, secret):
         return os.path.join("", self.environment.name, self.name, secret)
+
+    def put_parameter(self, parameter_id, parameter_value, tags=None, type="String", overwrite=True):
+        print(f"Creating Parameter {parameter_id}")
+        self.ssm_client.put_parameter(
+            Name=parameter_id,
+            Value=parameter_value,
+            Type=type,
+            Overwrite=overwrite,
+        )
+        if tags:
+            self.ssm_client.add_tags_to_resource(
+                ResourceType="Parameter",
+                ResourceId=parameter_id,
+                Tags=tags
+            )
 
     def create_secret(self, Name, SecretString, Tags, ForceOverwriteReplicaSecret):
         print(f"Creating Secret {Name}")
@@ -357,6 +404,31 @@ class BootstrapApp:
                 delay = min(delay * factor, max_delay)
                 print(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
+
+    def push_parameters(self):
+        for parameter, value in self.get_flattened_parameters().items():
+            parameter_value = str(value)
+            if (value_size := sys.getsizeof(parameter_value)) > 4096:
+                self.environment.manager.click.secho(
+                    f"Parameter: {parameter} value is too large to store ({value_size})"
+                )
+                continue
+            parameter_id = self.get_parameter_id(parameter)
+            self.backoff_with_custom_exception(
+                self.put_parameter,
+                exception=botocore.exceptions.ClientError,
+                message_prefix=f"Creating/Updating parameter {parameter_id}",
+                max_attempts=5,
+                base_delay=1,
+                max_delay=10,
+                factor=2,
+                parameter_id=parameter_id,
+                parameter_value=parameter_value,
+                tags=[
+                    {"Key": "Environment", "Value": self.environment.name},
+                    {"Key": "App", "Value": self.name},
+                ],
+            )
 
     def push_secrets(self):
         for secret, value in self.get_flattened_secrets().items():
@@ -397,6 +469,16 @@ class BootstrapApp:
         return response["SecretString"]
 
     @property
+    def remote_ssm_parameter_filters(self):
+        return [
+            {
+                "Key": "Name",
+                "Option": "Contains",
+                "Values": [f"/{self.environment.name}/{self.name}"]
+            }
+        ]
+
+    @property
     def remote_secret_filters(self):
         return [
             {"Key": "tag-key", "Values": ["Environment"]},
@@ -404,6 +486,20 @@ class BootstrapApp:
             {"Key": "tag-key", "Values": ["App"]},
             {"Key": "tag-value", "Values": [self.name]},
         ]
+
+    def get_remote_ssm_parameters(self):
+        paginator = self.ssm_client.get_paginator('describe_parameters')
+        parameters = {}
+        filters = self.remote_ssm_parameter_filters
+        response = paginator.paginate(
+            ParameterFilters=filters,
+        )
+        for page in response:
+            for parameter in page["Parameters"]:
+                parameter_key = os.path.split(parameter["Name"])[-1]
+                # parameters.append(parameter_key)
+                parameters[parameter_key] = parameter
+        return parameters
 
     def get_remote_secrets(self) -> typing.Dict[str, str]:
         paginator = self.secrets_client.get_paginator("list_secrets")
@@ -511,6 +607,16 @@ class BootstrapManager:
                 "s3", region_name=self.region, endpoint_url=self.endpoint_url
             )
         return self._s3_client
+    
+    @property
+    def ssm_client(self): 
+        if not hasattr(self, '_ssm_client'):
+            self._ssm_client = boto3.client(
+                "ssm", 
+                region_name=self.region,
+                endpoint_url=self.endpoint_url
+            )
+        return self._ssm_client
 
     @property
     def secrets_client(self) -> SecretsManagerClient:
@@ -555,13 +661,19 @@ class BootstrapManager:
             self.click.secho(f"S3 Client Error {err}", bg="red", fg="white")
 
     def put_config(self, delete_first):
-
+        self.cleanup_ssm_parameters()
         self.cleanup_secrets()
         for _environment_name, environment in self.environments.items():
             for _app_name, app in environment.apps.items():
                 # pass
                 app.upload_to_s3()
+                app.push_parameters()
                 app.push_secrets()
+
+    def cleanup_ssm_parameters(self):
+        for _environment_name, environment in self.environments.items():
+            for _app_name, app in environment.apps.items():
+                app.cleanup_ssm_parameters()
 
     def cleanup_secrets(self):
         for _environment_name, environment in self.environments.items():
