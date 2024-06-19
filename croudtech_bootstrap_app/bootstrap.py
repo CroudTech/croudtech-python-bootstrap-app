@@ -247,16 +247,21 @@ class BootstrapApp:
 
     def cleanup_ssm_parameters(self):
         local_value_keys = set(self.convert_flatten(self.local_values).keys() or [])
-        remote_value_keys = set(self.remote_ssm_parameters.keys() or [])
-        
+        self.raw = True
+        remote_value_keys = set(self.remote_values or [])
+        self.raw = None
+
         orphaned_ssm_parameters = remote_value_keys - local_value_keys
 
         for parameter in orphaned_ssm_parameters:
-            if parameter_record := self.remote_ssm_parameters.get(parameter):
+            parameter_id = self.get_parameter_id(parameter)
+            try:
                 self.ssm_client.delete_parameter(
-                    Name=parameter_record["Name"]
+                    Name=self.get_parameter_id(parameter)
                 )
                 logger.info(f"Deleted orphaned ssm parameter {parameter}")
+            except Exception:
+                logger.info(f"Parameter: {parameter_id} could not be deleted")
 
     def cleanup_secrets(self):
         local_secret_keys = self.convert_flatten(self.local_secrets).keys()
