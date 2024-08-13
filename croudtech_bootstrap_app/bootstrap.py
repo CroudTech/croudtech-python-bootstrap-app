@@ -207,6 +207,10 @@ class BootstrapApp:
         bucket = self.environment.manager.bucket_name
         dest = os.path.join("", self.environment.name, os.path.basename(self.path))
 
+        self.environment.manager.click.secho(
+            f"Uploading {source} to s3://{bucket}/{dest}"
+        )
+
         self.s3_client.upload_file(source, bucket, dest)
 
         self.environment.manager.click.secho(
@@ -295,7 +299,13 @@ class BootstrapApp:
     @property
     def remote_values(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_remote_values"):
-            self._remote_values = self.fetch_from_s3(self.raw)
+            try:
+                self._remote_values = self.fetch_from_s3(self.raw)
+            except botocore.exceptions.ClientError as err:
+                self.environment.manager.click.secho(
+                    err
+                )
+                self._remote_values = {}
 
         return self._remote_values
 
