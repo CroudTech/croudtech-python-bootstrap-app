@@ -75,11 +75,6 @@ jobs:
     container: python:3.12.7-bullseye
     displayName: CliBuildDebianBullseye
     steps:
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: "3.12"
-          addToPath: true
-          architecture: "x64"
       - script: |
           pip install -r requirements.dev.txt
           python -m build
