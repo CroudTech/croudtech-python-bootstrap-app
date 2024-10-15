@@ -53,9 +53,9 @@ jobs:
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-  - job: GithubRelease
+  - job: CliBuild
     dependsOn: build
-    displayName: GithubRelease
+    displayName: CliBuild
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -67,6 +67,20 @@ jobs:
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
+  - job: CliBuildDebianBuster
+    dependsOn: CliBuild
+    container: python:3.12.7-bullseye
+    displayName: CliBuildDebianBuster
+    steps:
+      - script: |
+          pip install -r requirements.dev.txt
+          pip install pyinstaller
+          pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-buster
+  - job: GithubRelease
+    dependsOn: CliBuildDebianBuster
+    displayName: GithubRelease
+    steps:
       - template: release/github-release.yaml@templates
         parameters:
           semVer: $(semVer)
