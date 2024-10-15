@@ -8,6 +8,6 @@ with open("./VERSION") as version_file:
     version = version_file.read()
 setup(
     name="croudtech-bootstrap",
-    version=version,
+    version=version.strip(),
     install_requires=required,
 )
