@@ -122,7 +122,7 @@ class BootstrapParameters:
                 parameters["REDIS_PORT"] if "REDIS_PORT" in parameters else 6379
             )
 
-            if redis_host:
+            if redis_host != None:
                 redis_config_instance = RedisConfig(
                     redis_host=redis_host,
                     redis_port=redis_port,
@@ -324,7 +324,7 @@ class BootstrapApp:
     def remote_ssm_parameters(self) -> typing.Dict[str, Any]:
         if not hasattr(self, "_remote_parameters"):
             self._remote_parameters = self.get_remote_ssm_parameters()
-            
+
         return self._remote_parameters
 
     @property
@@ -361,7 +361,7 @@ class BootstrapApp:
 
     def get_flattened_secrets(self) -> typing.Dict[str, Any]:
         return self.convert_flatten(self.local_secrets)
-    
+
     def get_parameter_id(self, parameter):
         return f"/{self.get_secret_id(parameter)}"
 
@@ -622,12 +622,12 @@ class BootstrapManager:
                 "s3", region_name=self.region, endpoint_url=self.endpoint_url
             )
         return self._s3_client
-    
+
     @property
-    def ssm_client(self): 
+    def ssm_client(self):
         if not hasattr(self, '_ssm_client'):
             self._ssm_client = boto3.client(
-                "ssm", 
+                "ssm",
                 region_name=self.region,
                 endpoint_url=self.endpoint_url
             )
