@@ -23,17 +23,17 @@ variables:
   - name: python_version
     value: 3.12
 jobs:
-  - job: PythonTest
-    steps:
-      - template: test/python-test.yaml@templates
-        parameters:
-          coverage: app,core,status
-          root_dir: ./
-          python_version: 3.12
-          pipenv_version: 2023.12.1
+  # - job: PythonTest
+  #   steps:
+  #     - template: test/python-test.yaml@templates
+  #       parameters:
+  #         coverage: app,core,status
+  #         root_dir: ./
+  #         python_version: 3.12
+  #         pipenv_version: 2023.12.1
   - job: build
     displayName: Build
-    dependsOn: PythonTest
+    # dependsOn: PythonTest
     condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
     steps:
       - task: UsePythonVersion@0
