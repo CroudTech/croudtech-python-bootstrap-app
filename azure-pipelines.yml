@@ -50,9 +50,6 @@ jobs:
           pip install -r requirements.dev.txt
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
-          pip install pyinstaller
-          pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
   - job: CliBuild
     dependsOn: build
     displayName: CliBuild
@@ -67,18 +64,18 @@ jobs:
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-  - job: CliBuildDebianBuster
+  - job: CliBuildDebianBullseye
     dependsOn: CliBuild
     container: python:3.12.7-bullseye
-    displayName: CliBuildDebianBuster
+    displayName: CliBuildDebianBullseye
     steps:
       - script: |
           pip install -r requirements.dev.txt
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-buster
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
   - job: GithubRelease
-    dependsOn: CliBuildDebianBuster
+    dependsOn: CliBuildDebianBullseye
     displayName: GithubRelease
     steps:
       - template: release/github-release.yaml@templates
