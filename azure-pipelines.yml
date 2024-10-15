@@ -89,6 +89,8 @@ jobs:
     dependsOn: CliBuildDebianBullseye
     displayName: GithubRelease
     steps:
+      - script: |
+          ls -la $(Build.ArtifactStagingDirectory)
       - template: release/github-release-build-number.yaml@templates
         parameters:
           semVer: $(semVer)
