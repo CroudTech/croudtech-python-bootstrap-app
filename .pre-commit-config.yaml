@@ -1,4 +1,11 @@
 repos:
+  - repo: local
+    hooks:
+      - id: bump-version
+        name: Bump version
+        entry: bump_version.sh
+        language: script
+        exclude: (.pre-commit-config.yaml)|(.github/)
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
