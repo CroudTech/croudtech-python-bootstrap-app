@@ -7,6 +7,6 @@ with open(os.path.join(os.getcwd(), "requirements.txt")) as f:
 
 setup(
     name="croudtech-bootstrap",
-    version="0.1.42",
+    version="0.1.43",
     install_requires=required,
 )
