@@ -7,6 +7,6 @@ with open(os.path.join(os.getcwd(), "requirements.txt")) as f:
 
 setup(
     name="croudtech-bootstrap",
-    version=os.getenv("SEMVER", os.getenv("GitVersion_FullSemVer", "dev")),
+    version="0.1.42",
     install_requires=required,
 )

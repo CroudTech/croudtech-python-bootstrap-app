@@ -40,14 +40,10 @@ jobs:
         inputs:
           versionSpec: "$(python_version)"
         displayName: "Use Python $(python_version)"
-      - task: gitversion/setup@0
-        displayName: Install GitVersion
-        inputs:
-          versionSpec: 5.x
-      - task: gitversion/execute@0
-        displayName: Use GitVersion
       - script: |
           pip install -r requirements.dev.txt
+          SEMVER=$(python setup.py --version)
+          echo "##vso[task.setvariable variable=semVer]$SEMVER"
           python -m build
           python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
   - job: CliBuild
