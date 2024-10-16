@@ -59,12 +59,13 @@ jobs:
           addToPath: true
           architecture: "x64"
       - script: |
+          set -x
           pip install -r requirements.dev.txt
           python -m build
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          ls -la
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
+          ls -la dist
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/dist/croudtech-bootstrap
 
   - job: CliBuildDebianBullseye
     dependsOn: CliBuild
@@ -72,19 +73,26 @@ jobs:
     displayName: CliBuildDebianBullseye
     steps:
       - script: |
+          set -x
           pip install -r requirements.dev.txt
           python -m build
           pip install pyinstaller
           /home/vsts_azpcontainer/.local/bin/pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          ls -la
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
-
+          ls -la dist
+          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/dist/croudtech-bootstrap-debian-bullseye
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: "$(Build.ArtifactStagingDirectory)/dist"
+          ArtifactName: "dist"
+          publishLocation: "Container"
   - job: GithubRelease
     dependsOn: CliBuildDebianBullseye
     displayName: GithubRelease
     steps:
+      - download: current
+        artifact: dist
       - script: |
-          ls -la $(Build.ArtifactStagingDirectory)
+          cp $(Pipeline.Workspace)/dist/* $(Build.ArtifactStagingDirectory)
       - template: release/github-release-build-number.yaml@templates
         parameters:
           semVer: $(semVer)
