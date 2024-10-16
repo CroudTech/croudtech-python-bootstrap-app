@@ -63,6 +63,7 @@ jobs:
           python -m build
           pip install pyinstaller
           pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
+          ls -la
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
       - task: PublishBuildArtifacts@1
         inputs:
@@ -79,6 +80,7 @@ jobs:
           python -m build
           pip install pyinstaller
           /home/vsts_azpcontainer/.local/bin/pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
+          ls -la
           cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
       - task: PublishBuildArtifacts@1
         inputs:
