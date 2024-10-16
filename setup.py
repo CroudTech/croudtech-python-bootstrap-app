@@ -10,4 +10,6 @@ setup(
     name="croudtech-bootstrap",
     version=version.strip(),
     install_requires=required,
+    setup_requires=["setuptools_scm"],
+    include_package_data=True,
 )
