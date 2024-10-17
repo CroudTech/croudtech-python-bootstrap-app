@@ -5,7 +5,7 @@ import sys
 
 def init():
     logger = logging.getLogger()
-    logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO")))
+    logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "CRITICAL")))
     handler = logging.StreamHandler(sys.stdout)
     # handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(

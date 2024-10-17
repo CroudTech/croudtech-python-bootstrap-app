@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: bump-version
-        name: Bump version
-        entry: bump_version.sh
+      - id: check-version
+        name: Check version
+        entry: check_version.sh
         language: script
         exclude: (.pre-commit-config.yaml)|(.github/)
   - repo: https://github.com/psf/black
@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: prettier
   - repo: https://github.com/pycqa/isort
-    rev: 5.8.0
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)

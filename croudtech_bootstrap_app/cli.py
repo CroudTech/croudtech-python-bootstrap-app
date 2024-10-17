@@ -1,6 +1,6 @@
 import json
 import os
-import urllib.parse
+
 import boto3
 import click
 from table2ascii import Alignment, table2ascii
@@ -8,9 +8,6 @@ from yaml import dump
 
 from .bootstrap import BootstrapManager, BootstrapParameters
 from .redis_config import RedisConfig
-
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
 
 try:
     from yaml import CDumper as Dumper
@@ -139,90 +136,6 @@ def get_config(
 
     if isinstance(output, str):
         print(output)
-
-
-@cli.command()
-@click.pass_context
-@click.option("--environment-name", help="The environment name", required=True)
-@click.option("--app-name", help="The app name", required=True)
-@click.option("--prefix", default="/appconfig", help="The path prefix")
-@click.option("--region", default="eu-west-2", help="The AWS region")
-@click.option(
-    "--include-common/--ignore-common",
-    default=True,
-    is_flag=True,
-    help="Include shared variables",
-)
-@click.option(
-    "--output-format",
-    default="json",
-    type=click.Choice(["json", "yaml", "environment", "environment-export"]),
-)
-@click.option(
-    "--parse-redis-param/--ignore-redis-param",
-    default=True,
-    is_flag=True,
-    help="Parse redis host and allocate a redis database number",
-)
-@click.option(
-    "--server-port",
-    default="9099"
-)
-def config_server(
-    ctx,
-    environment_name,
-    app_name,
-    prefix,
-    region,
-    include_common,
-    output_format,
-    parse_redis_param,
-    server_port
-):
-    bootstrap = BootstrapParameters(
-        environment_name=environment_name,
-        app_name=app_name,
-        prefix=prefix,
-        region=region,
-        include_common=include_common,
-        click=click,
-        endpoint_url=ctx.obj["AWS_ENDPOINT_URL"],
-        parse_redis=parse_redis_param,
-        bucket_name=ctx.obj["BUCKET_NAME"],
-    )
-
-    class ConfigServer(BaseHTTPRequestHandler):     
-        def do_GET(self):            
-            if output_format == "json":
-                # self.send_header("Content-type", "text/json")
-                output = json.dumps(bootstrap.get_raw_params(), indent=2)
-            elif output_format == "yaml":
-                # self.send_header("Content-type", "text/yaml")
-                output = dump(bootstrap.get_raw_params(), Dumper=Dumper)
-            elif output_format == "environment":
-                # self.send_header("Content-type", "text/plain")
-                output = bootstrap.params_to_env()
-            elif output_format == "environment-export":
-                # self.send_header("Content-type", "text/plain")
-                output = bootstrap.params_to_env(export=True)
-
-            self.send_response(200)
-            self.send_header("Content-type", "text/plain")
-            self.end_headers()
-            for line in output.split("\n"):
-                self.wfile.write(bytes(line + "\n", "utf-8"))
-            # raise KeyboardInterrupt()
-            
-    
-    webServer = HTTPServer(("0.0.0.0", int(server_port)), ConfigServer)
-    print("Server started http://%s:%s" % ("0.0.0.0", server_port))
-    try:
-        webServer.serve_forever()
-    except KeyboardInterrupt:
-        pass
-
-    webServer.server_close()
-    print("Server stopped.")
 
 
 @cli.command()

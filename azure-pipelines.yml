@@ -41,11 +41,12 @@ jobs:
           versionSpec: "$(python_version)"
         displayName: "Use Python $(python_version)"
       - script: |
-          pip install -r requirements.dev.txt
-          SEMVER=$(python setup.py --version)
+          pip install poetry
+          SEMVER=$(poetry --version)
           echo "##vso[task.setvariable variable=semVer]$SEMVER"
-          python -m build
-          python -m twine upload ./dist/* --non-interactive -u __token__ -p $(pypi_token)
+          poetry self add poetry-pyinstaller-plugin
+          poetry install
+          poetry build
       - task: UpdateBuildNumber@0
         inputs:
           buildNumber: $(semVer)

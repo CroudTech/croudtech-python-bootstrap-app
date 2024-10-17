@@ -2,3 +2,6 @@
 dist
 test-output.xml
 __pycache__
+.aws.env
+build
+testvalues
