@@ -47,7 +47,7 @@ jobs:
     steps:
       - script: |
           set -x
-          whoami
+          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
           poetry version $SEMVER
           poetry self add "poetry-pyinstaller-plugin[plugin]"
