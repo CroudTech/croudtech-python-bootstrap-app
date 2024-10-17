@@ -77,7 +77,7 @@ jobs:
           publishLocation: "Container"
 
   - job: GithubRelease
-    dependsOn: build
+    dependsOn: build_glibc_latest
     displayName: GithubRelease
     steps:
       - download: current
