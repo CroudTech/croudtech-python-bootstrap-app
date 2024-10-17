@@ -46,6 +46,8 @@ jobs:
     displayName: Build for GLIBC 2.
     steps:
       - script: |
+          set -x
+          whoami
           pip install pipx && pipx install poetry
           poetry version $SEMVER
           poetry self add "poetry-pyinstaller-plugin[plugin]"
