@@ -45,12 +45,6 @@ jobs:
     container: python:3.9.17-buster
     displayName: Build for GLIBC 2.
     steps:
-      - task: gitversion/setup@0
-        displayName: Install GitVersion
-        inputs:
-          versionSpec: 5.x
-      - task: gitversion/execute@0
-        displayName: Use GitVersion
       - script: |
           pip install poetry
           poetry version $(semVer)
