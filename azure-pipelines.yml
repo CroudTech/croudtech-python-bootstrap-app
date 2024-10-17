@@ -47,13 +47,15 @@ jobs:
     steps:
       - script: |
           pip install poetry
-          poetry version $(semVer)
+          poetry version $SEMVER
           poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
           poetry build
           poetry config pypi-token.pypi $(pypi_token)
           poetry publish
           cp ./dist/pyinstaller/manylinux_2_31_x86_64/croudtech-boostrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
+        env:
+          SEMVER: $(semVer)
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: "$(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye"
