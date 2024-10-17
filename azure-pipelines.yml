@@ -31,67 +31,53 @@ jobs:
   #         root_dir: ./
   #         python_version: 3.12
   #         pipenv_version: 2023.12.1
-  - job: build
-    displayName: Build
+  - job: build_glibc_2_31
+
     # dependsOn: PythonTest
-    condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
+    container: python:3.9.17-buster
+    displayName: Build for GLIBC 2.
     steps:
-      - task: UsePythonVersion@0
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
         inputs:
-          versionSpec: "$(python_version)"
-        displayName: "Use Python $(python_version)"
+          versionSpec: 5.x
+      - task: gitversion/execute@0
+        displayName: Use GitVersion
       - script: |
           pip install poetry
-          SEMVER=$(poetry --version)
-          echo "##vso[task.setvariable variable=semVer]$SEMVER"
-          poetry self add poetry-pyinstaller-plugin
+          poetry version $(semVer)
+          poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
           poetry build
-      - task: UpdateBuildNumber@0
-        inputs:
-          buildNumber: $(semVer)
-  - job: CliBuild
-    dependsOn: build
-    displayName: CliBuild
-    steps:
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: "3.12"
-          addToPath: true
-          architecture: "x64"
-      - script: |
-          set -x
-          pip install -r requirements.dev.txt
-          python -m build
-          pip install pyinstaller
-          pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          ls -la dist
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-      - task: PublishBuildArtifacts@1
-        inputs:
-          PathtoPublish: "$(Build.ArtifactStagingDirectory)/croudtech-bootstrap"
-          ArtifactName: "croudtech-bootstrap"
-          publishLocation: "Container"
-  - job: CliBuildDebianBullseye
-    dependsOn: CliBuild
-    container: python:3.12.7-bullseye
-    displayName: CliBuildDebianBullseye
-    steps:
-      - script: |
-          set -x
-          pip install -r requirements.dev.txt
-          python -m build
-          pip install pyinstaller
-          /home/vsts_azpcontainer/.local/bin/pyinstaller  --onefile ./croudtech_bootstrap_app/croudtech-bootstrap.py --clean
-          ls -la dist
-          cp ./dist/croudtech-bootstrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
+          poetry config pypi-token.pypi $(pypi_token)
+          poetry publish
+          cp ./dist/pyinstaller/manylinux_2_31_x86_64/croudtech-boostrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: "$(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye"
           ArtifactName: "croudtech-bootstrap-debian-bullseye"
           publishLocation: "Container"
+  - job: build_glibc_latest
+    displayName: Build for GLIBC Latest
+    dependsOn: build_glibc_2_31
+    container: python:3.12.7
+    condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
+    steps:
+      - script: |
+          pip install poetry
+          poetry version $(semVer)
+          poetry self add "poetry-pyinstaller-plugin[plugin]"
+          poetry install
+          poetry build
+          cp ./dist/pyinstaller/manylinux_2_31_x86_64/croudtech-boostrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: "$(Build.ArtifactStagingDirectory)/croudtech-bootstrap"
+          ArtifactName: "croudtech-bootstrap"
+          publishLocation: "Container"
+
   - job: GithubRelease
-    dependsOn: CliBuildDebianBullseye
+    dependsOn: build
     displayName: GithubRelease
     steps:
       - download: current
@@ -101,7 +87,7 @@ jobs:
       - script: |
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
-      - template: release/github-release-build-number.yaml@templates
+      - template: release/github-release.yaml@templates
         parameters:
           semVer: $(semVer)
           github_access_token: $(github_access_token)

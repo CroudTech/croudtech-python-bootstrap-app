@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "croudtech-bootstrap"
-version = "0.0.1-pre.115+34dc631"
+version = "0.0.0"
 description = "Applicaton config via AWS S3 and AWS Secrets Manager"
 authors = ["Jim Robinson <jscrobinson@gmail.com>"]
 license = "mit"
@@ -35,16 +35,9 @@ pytest-xdist = "3.5.0"
 pre-commit = "^4.0.1"
 pyinstaller = "^6.11.0"
 
-[tool.poetry-dynamic-versioning]
-enable = true
-vcs = "git"
-style = "semver"
-fix-shallow-repository = true
-bump = true
-
 [build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.poetry-pyinstaller-plugin]
 version = "6.7.0"
