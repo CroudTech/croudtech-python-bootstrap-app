@@ -25,15 +25,23 @@ variables:
 jobs:
   # - job: PythonTest
   #   steps:
-  #     - template: test/python-test.yaml@templates
+  #     - template: test/python-test-with-poetry.yaml@templates
   #       parameters:
-  #         coverage: app,core,status
+  #         coverage: croudtech_bootstrap_app
   #         root_dir: ./
   #         python_version: 3.12
   #         pipenv_version: 2023.12.1
-  - job: build_glibc_2_31
-
+  - job: set_versions
     # dependsOn: PythonTest
+    steps:
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
+        inputs:
+          versionSpec: 5.x
+      - task: gitversion/execute@0
+        displayName: Use GitVersion
+  - job: build_glibc_2_31
+    dependsOn: set_versions
     container: python:3.9.17-buster
     displayName: Build for GLIBC 2.
     steps:
