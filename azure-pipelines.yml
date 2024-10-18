@@ -49,7 +49,12 @@ jobs:
           poetry install
           poetry build
           poetry config pypi-token.pypi $(pypi_token)
-          poetry publish
+          cp ./dist $(Build.ArtifactStagingDirectory)/dist
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: "$(Build.ArtifactStagingDirectory)/dist"
+          ArtifactName: "dist"
+          publishLocation: "Container"
   - job: build_glibc_2_28
     dependsOn: build_package
     container: python:3.9.17-buster
@@ -79,7 +84,6 @@ jobs:
           set -x
           export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
-          poetry version $(semVer)
           poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
           poetry build
@@ -98,12 +102,30 @@ jobs:
         artifact: croudtech-bootstrap-debian-bullseye
       - download: current
         artifact: croudtech-bootstrap
+      - download: current
+        artifact: dist
+      - task: UsePythonVersion@0
+        name: set_python_version
+        displayName: Set Python Version
+        inputs:
+          versionSpec: '$(python_version)'
+          addToPath: true
+          architecture: x64
       - script: |
+          set -x
+          cp $(Pipeline.Workspace)/dist/dist $(Build.ArtifactStagingDirectory) ./dist
+          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
+          pip install pipx && pipx install poetry
+          poetry version $(GitVersion.SemVer)
+          poetry self add "poetry-pyinstaller-plugin[plugin]"
+          poetry install
+          poetry publish
+          cp $(Pipeline.Workspace)/dist/dist $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
       - template: release/github-release.yaml@templates
         parameters:
-          semVer: $(semVer)
+          semVer: $(GitVersion.SemVer)
           github_access_token: $(github_access_token)
           github_org: CroudTech
           github_repo: croudtech-python-bootstrap-app
