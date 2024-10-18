@@ -31,8 +31,9 @@ jobs:
   #         root_dir: ./
   #         python_version: 3.12
   #         pipenv_version: 2023.12.1
-  - job: set_versions
-    # dependsOn: PythonTest
+  - job: build_package
+    # dependsOn: set_versions
+    displayName: Build Package
     steps:
       - task: gitversion/setup@0
         displayName: Install GitVersion
@@ -40,24 +41,29 @@ jobs:
           versionSpec: 5.x
       - task: gitversion/execute@0
         displayName: Use GitVersion
-  - job: build_glibc_2_31
-    dependsOn: set_versions
+      - script: |
+          set -x
+          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
+          pip install pipx && pipx install poetry
+          poetry version $(GitVersion.SemVer)
+          poetry install
+          poetry build
+          poetry config pypi-token.pypi $(pypi_token)
+          poetry publish
+  - job: build_glibc_2_28
+    dependsOn: build_package
     container: python:3.9.17-buster
-    displayName: Build for GLIBC 2.
+    displayName: Build for GLIBC 2.28
     steps:
       - script: |
           set -x
           export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
-          poetry version $SEMVER
           poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
           poetry build
           poetry config pypi-token.pypi $(pypi_token)
-          poetry publish
-          cp ./dist/pyinstaller/manylinux_2_31_x86_64/croudtech-boostrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap
-        env:
-          SEMVER: $(GitVersion.SemVer)
+          cp ./dist/pyinstaller/manylinux_2_28_x86_64/croudtech-boostrap $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: "$(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye"
