@@ -71,7 +71,7 @@ jobs:
           publishLocation: "Container"
   - job: build_glibc_latest
     displayName: Build for GLIBC Latest
-    dependsOn: build_glibc_2_31
+    dependsOn: build_glibc_2_28
     container: python:3.12.7
     condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
     steps:
