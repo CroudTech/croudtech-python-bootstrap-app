@@ -118,9 +118,9 @@ jobs:
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
           poetry self add "poetry-pyinstaller-plugin[plugin]"
-          poetry install
-          poetry publish
+          poetry install          
           cp $(Pipeline.Workspace)/dist/dist $(Build.ArtifactStagingDirectory)
+          poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
       - template: release/github-release.yaml@templates
