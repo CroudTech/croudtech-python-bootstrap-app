@@ -49,7 +49,7 @@ jobs:
           poetry install
           poetry build
           poetry config pypi-token.pypi $(pypi_token)
-          cp ./dist $(Build.ArtifactStagingDirectory)/dist
+          cp -R ./dist $(Build.ArtifactStagingDirectory)/dist
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: "$(Build.ArtifactStagingDirectory)/dist"
