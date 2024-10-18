@@ -31,32 +31,8 @@ jobs:
   #         root_dir: ./
   #         python_version: 3.12
   #         pipenv_version: 2023.12.1
-  - job: build_package
-    # dependsOn: set_versions
-    displayName: Build Package
-    steps:
-      - task: gitversion/setup@0
-        displayName: Install GitVersion
-        inputs:
-          versionSpec: 5.x
-      - task: gitversion/execute@0
-        displayName: Use GitVersion
-      - script: |
-          set -x
-          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
-          pip install pipx && pipx install poetry
-          poetry version $(GitVersion.SemVer)
-          poetry install
-          poetry build
-          poetry config pypi-token.pypi $(pypi_token)
-          cp -R ./dist $(Build.ArtifactStagingDirectory)/dist
-      - task: PublishBuildArtifacts@1
-        inputs:
-          PathtoPublish: "$(Build.ArtifactStagingDirectory)/dist"
-          ArtifactName: "dist"
-          publishLocation: "Container"
   - job: build_glibc_2_28
-    dependsOn: build_package
+    # dependsOn: PythonTest
     container: python:3.9.17-buster
     displayName: Build for GLIBC 2.28
     steps:
@@ -94,16 +70,14 @@ jobs:
           ArtifactName: "croudtech-bootstrap"
           publishLocation: "Container"
 
-  - job: GithubRelease
+  - job: BuildGithubRelease
     dependsOn: build_glibc_latest
-    displayName: GithubRelease
+    displayName: Build and GithubRelease
     steps:
       - download: current
         artifact: croudtech-bootstrap-debian-bullseye
       - download: current
         artifact: croudtech-bootstrap
-      - download: current
-        artifact: dist
       - task: UsePythonVersion@0
         name: set_python_version
         displayName: Set Python Version
@@ -111,15 +85,19 @@ jobs:
           versionSpec: '$(python_version)'
           addToPath: true
           architecture: x64
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
+        inputs:
+          versionSpec: 5.x
+      - task: gitversion/execute@0
+        displayName: Use GitVersion
       - script: |
           set -x
-          cp $(Pipeline.Workspace)/dist/dist $(Build.ArtifactStagingDirectory) ./dist
           export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
-          poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install          
-          cp $(Pipeline.Workspace)/dist/dist $(Build.ArtifactStagingDirectory)
+          poetry build
           poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
