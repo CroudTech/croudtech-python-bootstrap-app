@@ -76,6 +76,8 @@ jobs:
     condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
     steps:
       - script: |
+          set -x
+          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(semVer)
           poetry self add "poetry-pyinstaller-plugin[plugin]"
