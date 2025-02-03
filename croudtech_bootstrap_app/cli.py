@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+from pathlib import Path
 
 import boto3
 import click
@@ -102,6 +104,18 @@ def init(ctx, environment_name, region):
     is_flag=True,
     help="Parse redis host and allocate a redis database number",
 )
+@click.option(
+    "--cache/--no-cache",
+    default=True,
+    is_flag=True,
+    help="Cache results",
+)
+@click.option(
+    "--cache-directory",
+    default=os.path.join(str(Path.home()), ".croudtech-bootstrap", "cache"),
+    is_flag=False,
+    help="The cache location",
+)
 def get_config(
     ctx,
     environment_name,
@@ -111,6 +125,8 @@ def get_config(
     include_common,
     output_format,
     parse_redis_param,
+    cache,
+    cache_directory,
 ):
     bootstrap = BootstrapParameters(
         environment_name=environment_name,
@@ -122,6 +138,8 @@ def get_config(
         endpoint_url=ctx.obj["AWS_ENDPOINT_URL"],
         parse_redis=parse_redis_param,
         bucket_name=ctx.obj["BUCKET_NAME"],
+        cache_enabled=cache,
+        cache_directory=cache_directory,
     )
     output = "Invalid output format"
 
@@ -136,6 +154,28 @@ def get_config(
 
     if isinstance(output, str):
         print(output)
+
+
+@cli.command()
+@click.pass_context
+@click.option(
+    "--cache-directory",
+    default=os.path.join(str(Path.home()), ".croudtech-bootstrap", "cache"),
+    is_flag=False,
+    help="The cache location",
+)
+def clear_cache(
+    ctx,
+    cache_directory,
+):
+    if not os.path.exists(cache_directory):
+        print(f"Cache directory {cache_directory} does not exist!")
+        return False
+    continue_delete = click.confirm(
+        f"Are you sure you want to delete {cache_directory}?"
+    )
+    if continue_delete:
+        shutil.rmtree(cache_directory)
 
 
 @cli.command()
