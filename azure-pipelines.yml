@@ -55,7 +55,7 @@ jobs:
     displayName: Build for GLIBC Latest
     dependsOn: build_glibc_2_28
     container: python:3.12.7
-    condition: and(succeeded(), in(variables['Build.SourceBranchName'],  'integration', 'main'))
+    condition: and(succeeded(), or(in(variables['Build.SourceBranchName'],  'integration', 'main'), in(variables['Build.SourceBranch'], 'release')))
     steps:
       - script: |
           set -x
@@ -74,6 +74,7 @@ jobs:
   - job: BuildGithubRelease
     dependsOn: build_glibc_latest
     displayName: Build and GithubRelease
+    condition: and(succeeded(), or(in(variables['Build.SourceBranchName'],  'integration', 'main'), in(variables['Build.SourceBranch'], 'release')))
     steps:
       - download: current
         artifact: croudtech-bootstrap-debian-bullseye
