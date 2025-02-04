@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-
 from typing import TYPE_CHECKING, Any
 
 import botocore.exceptions
@@ -15,17 +14,18 @@ else:
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
+import time
 import typing
 from collections.abc import MutableMapping
+from pathlib import Path
 
 import boto3
 import botocore
 import click
 import yaml
-import time
-import re
 
 from croudtech_bootstrap_app.logging import init as initLogs
 
@@ -57,6 +57,8 @@ class BootstrapParameters:
         use_sns=True,
         endpoint_url=AWS_ENDPOINT_URL,
         parse_redis=True,
+        cache_enabled=True,
+        cache_directory=os.path.join(str(Path.home()), ".croudtech-bootstrap", "cache"),
     ):
         self.environment_name = environment_name
         self.app_name = app_name
@@ -70,6 +72,8 @@ class BootstrapParameters:
         self.endpoint_url = endpoint_url
         self.put_metrics = False
         self.parse_redis = parse_redis
+        self.cache_enabled = cache_enabled
+        self.cache_directory = cache_directory
 
     @property
     def bootstrap_manager(self) -> BootstrapManager:
@@ -88,7 +92,11 @@ class BootstrapParameters:
     def environment(self) -> BootstrapEnvironment:
         if not hasattr(self, "_environment"):
             self._environment = BootstrapEnvironment(
-                name=self.environment_name, path=None, manager=self.bootstrap_manager
+                name=self.environment_name,
+                path=None,
+                manager=self.bootstrap_manager,
+                cache_enabled=self.cache_enabled,
+                cache_directory=self.cache_directory,
             )
         return self._environment
 
@@ -96,7 +104,11 @@ class BootstrapParameters:
     def app(self) -> BootstrapApp:
         if not hasattr(self, "_app"):
             self._app = BootstrapApp(
-                name=self.app_name, path=None, environment=self.environment
+                name=self.app_name,
+                path=None,
+                environment=self.environment,
+                cache_enabled=self.cache_enabled,
+                cache_directory=self.cache_directory,
             )
         return self._app
 
@@ -104,7 +116,11 @@ class BootstrapParameters:
     def common_app(self) -> BootstrapApp:
         if not hasattr(self, "_common_app"):
             self._common_app = BootstrapApp(
-                name="common", path=None, environment=self.environment
+                name="common",
+                path=None,
+                environment=self.environment,
+                cache_enabled=self.cache_enabled,
+                cache_directory=self.cache_directory,
             )
         return self._common_app
 
@@ -122,7 +138,7 @@ class BootstrapParameters:
                 parameters["REDIS_PORT"] if "REDIS_PORT" in parameters else 6379
             )
 
-            if redis_host != None:
+            if redis_host is not None:
                 redis_config_instance = RedisConfig(
                     redis_host=redis_host,
                     redis_port=redis_port,
@@ -187,17 +203,26 @@ class BootstrapParameters:
 class BootstrapApp:
     environment: BootstrapEnvironment
 
-    def __init__(self, name, path, environment: BootstrapEnvironment):
+    def __init__(
+        self,
+        name,
+        path,
+        environment: BootstrapEnvironment,
+        cache_enabled=True,
+        cache_directory=os.path.join(str(Path.home()), ".croudtech-bootstrap", "cache"),
+    ):
         self.name = name
         self.path = path
         self.environment = environment
+        self.cache_enabled = cache_enabled
+        self.cache_directory = cache_directory
 
     @property
     def s3_client(self) -> S3Client:
         return self.environment.manager.s3_client
 
     @property
-    def ssm_client(self) -> SSMClient:
+    def ssm_client(self):
         return self.environment.manager.ssm_client
 
     @property
@@ -214,14 +239,12 @@ class BootstrapApp:
         dest = os.path.join("", self.environment.name, os.path.basename(self.path))
 
         self.environment.manager.click.secho(
-            f"Uploading {source} to s3://{bucket}/{dest}"
+            f"Uploading {source} to s3 {bucket}/{dest}"
         )
 
         self.s3_client.upload_file(source, bucket, dest)
 
-        self.environment.manager.click.secho(
-            f"Uploaded {source} to s3://{bucket}/{dest}"
-        )
+        self.environment.manager.click.secho(f"Uploaded {source} to s3 {bucket}/{dest}")
 
     @property
     def s3_key(self):
@@ -260,9 +283,7 @@ class BootstrapApp:
         for parameter in orphaned_ssm_parameters:
             parameter_id = self.get_parameter_id(parameter)
             try:
-                self.ssm_client.delete_parameter(
-                    Name=self.get_parameter_id(parameter)
-                )
+                self.ssm_client.delete_parameter(Name=self.get_parameter_id(parameter))
                 logger.info(f"Deleted orphaned ssm parameter {parameter}")
             except Exception:
                 logger.info(f"Parameter: {parameter_id} could not be deleted")
@@ -272,7 +293,9 @@ class BootstrapApp:
         remote_secret_keys = self.remote_secret_records.keys()
 
         orphaned_secrets = [
-            item for item in remote_secret_keys if re.sub(r"(-[a-zA-Z]{6})$", "", item) not in local_secret_keys
+            item
+            for item in remote_secret_keys
+            if re.sub(r"(-[a-zA-Z]{6})$", "", item) not in local_secret_keys
         ]
 
         for secret in orphaned_secrets:
@@ -333,9 +356,7 @@ class BootstrapApp:
             try:
                 self._remote_values = self.fetch_from_s3(self.raw)
             except botocore.exceptions.ClientError as err:
-                self.environment.manager.click.secho(
-                    err
-                )
+                self.environment.manager.click.secho(err)
                 self._remote_values = {}
 
         return self._remote_values
@@ -345,16 +366,43 @@ class BootstrapApp:
         app_secrets = self.convert_flatten(self.local_secrets)
         return {**app_values, **app_secrets}
 
+    @property
+    def cache_file_name(self):
+        return os.path.join(self.cache_app_directory, f"{self.name}.yaml")
+
+    @property
+    def cache_app_directory(self):
+        return os.path.join(self.cache_directory, self.environment.name)
+
+    def get_cached_parameters(self, flatten=True):
+        if self.cache_enabled is False:
+            return None
+        if not os.path.exists(self.cache_file_name):
+            return None
+        with open(self.cache_file_name) as cache_file_pointer:
+            return json.load(cache_file_pointer)
+
     def get_remote_params(self, flatten=True):
-        if flatten:
-            self.raw = False
-            app_values = self.convert_flatten(self.remote_values)
-            app_secrets = self.convert_flatten(self.remote_secrets)
-        else:
-            self.raw = True
-            app_values = self.remote_values
-            app_secrets = self.remote_secrets
-        return {**app_values, **app_secrets}
+        if not (parameters := self.get_cached_parameters(flatten)):
+            if flatten:
+                self.raw = False
+                app_values = self.convert_flatten(self.remote_values)
+                app_secrets = self.convert_flatten(self.remote_secrets)
+            else:
+                self.raw = True
+                app_values = self.remote_values
+                app_secrets = self.remote_secrets
+            parameters = {**app_values, **app_secrets}
+            if self.cache_enabled:
+                self.save_to_cache(parameters)
+        return parameters
+
+    def save_to_cache(self, parameters):
+        if not os.path.exists(self.cache_app_directory):
+            os.makedirs(self.cache_app_directory)
+        with open(self.cache_file_name, "w") as cache_file_pointer:
+            json.dump(parameters, cache_file_pointer)
+        return True
 
     def get_flattened_parameters(self) -> typing.Dict[str, Any]:
         return self.convert_flatten(self.local_values)
@@ -368,7 +416,9 @@ class BootstrapApp:
     def get_secret_id(self, secret):
         return os.path.join("", self.environment.name, self.name, secret)
 
-    def put_parameter(self, parameter_id, parameter_value, tags=None, type="String", overwrite=True):
+    def put_parameter(
+        self, parameter_id, parameter_value, tags=None, type="String", overwrite=True
+    ):
         print(f"Creating Parameter {parameter_id}")
         self.ssm_client.put_parameter(
             Name=parameter_id,
@@ -378,9 +428,7 @@ class BootstrapApp:
         )
         if tags:
             self.ssm_client.add_tags_to_resource(
-                ResourceType="Parameter",
-                ResourceId=parameter_id,
-                Tags=tags
+                ResourceType="Parameter", ResourceId=parameter_id, Tags=tags
             )
 
     def create_secret(self, Name, SecretString, Tags, ForceOverwriteReplicaSecret):
@@ -401,7 +449,18 @@ class BootstrapApp:
                 SecretString=SecretString,
             )
 
-    def backoff_with_custom_exception(self, func, exception, message_prefix="", max_attempts=5, base_delay=1, max_delay=10, factor=2, *args, **kwargs):
+    def backoff_with_custom_exception(
+        self,
+        func,
+        exception,
+        message_prefix="",
+        max_attempts=5,
+        base_delay=1,
+        max_delay=10,
+        factor=2,
+        *args,
+        **kwargs,
+    ):
         attempts = 0
         delay = base_delay
 
@@ -410,7 +469,7 @@ class BootstrapApp:
                 result = func(*args, **kwargs)
                 return result  # Return result if successful
             except exception as e:
-                print(f"{message_prefix} Attempt {attempts+1} failed: {e}")
+                print(f"{message_prefix} Attempt {attempts + 1} failed: {e}")
                 attempts += 1
                 if attempts == max_attempts:
                     raise  # If all attempts fail, raise the last exception
@@ -423,7 +482,9 @@ class BootstrapApp:
     def push_parameters(self):
         for parameter, value in self.get_flattened_parameters().items():
             parameter_value = str(value)
-            if (value_size := sys.getsizeof(parameter_value)) > 4096 or not parameter_value:
+            if (
+                value_size := sys.getsizeof(parameter_value)
+            ) > 4096 or not parameter_value:
                 self.environment.manager.click.secho(
                     f"Parameter: {parameter} value is too large to store ({value_size})"
                 )
@@ -472,9 +533,7 @@ class BootstrapApp:
             except Exception as err:
                 logger.error(f"Failed to push secret {secret_id}")
                 raise err
-            self.environment.manager.click.secho(
-                f"Pushed {secret_id}"
-            )
+            self.environment.manager.click.secho(f"Pushed {secret_id}")
 
     def fetch_secret_value(self, secret):
         response = self.secrets_client.get_secret_value(SecretId=secret["ARN"])
@@ -489,7 +548,7 @@ class BootstrapApp:
             {
                 "Key": "Name",
                 "Option": "Contains",
-                "Values": [f"/{self.environment.name}/{self.name}"]
+                "Values": [f"/{self.environment.name}/{self.name}"],
             }
         ]
 
@@ -503,7 +562,7 @@ class BootstrapApp:
         ]
 
     def get_remote_ssm_parameters(self):
-        paginator = self.ssm_client.get_paginator('describe_parameters')
+        paginator = self.ssm_client.get_paginator("describe_parameters")
         parameters = {}
         filters = self.remote_ssm_parameter_filters
         response = paginator.paginate(
@@ -558,12 +617,21 @@ class BootstrapApp:
 class BootstrapEnvironment:
     manager: BootstrapManager
 
-    def __init__(self, name, path, manager: BootstrapManager):
+    def __init__(
+        self,
+        name,
+        path,
+        manager: BootstrapManager,
+        cache_enabled=True,
+        cache_directory=os.path.join(str(Path.home()), ".croudtech-bootstrap", "cache"),
+    ):
         self.name = name
         self.path = path
         self.manager = manager
         if self.path:
             self.copy_to_temp()
+        self.cache_enabled = cache_enabled
+        self.cache_directory = cache_directory
 
     @property
     def temp_dir(self):
@@ -587,7 +655,11 @@ class BootstrapEnvironment:
                     and not is_secret
                 ):
                     self._apps[app_name] = BootstrapApp(
-                        app_name, absolute_path, environment=self
+                        app_name,
+                        absolute_path,
+                        environment=self,
+                        cache_enabled=self.cache_enabled,
+                        cache_directory=self.cache_directory,
                     )
         return self._apps
 
@@ -625,11 +697,9 @@ class BootstrapManager:
 
     @property
     def ssm_client(self):
-        if not hasattr(self, '_ssm_client'):
+        if not hasattr(self, "_ssm_client"):
             self._ssm_client = boto3.client(
-                "ssm",
-                region_name=self.region,
-                endpoint_url=self.endpoint_url
+                "ssm", region_name=self.region, endpoint_url=self.endpoint_url
             )
         return self._ssm_client
 
@@ -706,6 +776,7 @@ class BootstrapManager:
                             item,
                             os.path.join(self.values_path_real, item),
                             manager=self,
+                            cache_enabled=False,
                         )
 
         return self._environments
