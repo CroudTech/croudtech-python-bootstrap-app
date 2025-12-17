@@ -66,6 +66,21 @@ Configuration is stored in three AWS services:
 | **SSM Parameter Store** | Non-sensitive parameters | `/{environment}/{app}/{key}`             |
 | **Secrets Manager**     | Sensitive values         | `{environment}/{app}/{key}`              |
 
+### Secret Tagging
+
+When secrets are pushed to AWS Secrets Manager, they are tagged with metadata to enable filtering during retrieval:
+
+| Tag Key       | Tag Value        | Example      |
+| ------------- | ---------------- | ------------ |
+| `Environment` | Environment name | `production` |
+| `App`         | Application name | `myapp`      |
+
+**Why tags matter:** When retrieving secrets, the system queries Secrets Manager using these tags as filters rather than listing all secrets. This ensures:
+
+- Secrets are correctly associated with their app/environment
+- Efficient retrieval without scanning all secrets in the account
+- Proper isolation between applications and environments
+
 ### Retrieval Process
 
 When you retrieve configuration using `get-config`:
