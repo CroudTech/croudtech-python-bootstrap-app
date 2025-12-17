@@ -1,3 +1,23 @@
+"""
+Command-line interface for croudtech-bootstrap.
+
+This module provides CLI commands for managing application configuration
+across multiple environments using AWS services (S3, SSM, Secrets Manager).
+
+Commands:
+    init: Initialize bootstrap infrastructure (create S3 bucket)
+    get-config: Retrieve configuration for an application
+    put-config: Push local configuration to AWS
+    cleanup-secrets: Remove orphaned secrets
+    list-apps: List all configured applications
+    manage-redis: Redis database allocation management
+
+Usage:
+    croudtech-bootstrap --help
+    croudtech-bootstrap get-config --environment-name prod --app-name myapp
+    croudtech-bootstrap put-config ./config
+"""
+
 import json
 import os
 
@@ -16,6 +36,15 @@ except ImportError:
 
 
 def object2table(object):
+    """
+    Format a dictionary as an ASCII table.
+
+    Args:
+        object: Dictionary to format.
+
+    Returns:
+        str: ASCII table representation.
+    """
     col1width = len(max(object.keys(), key=len))
     col2width = len(str(max(object.values())))
     headfoot = "+-%s-+-%s-+" % ("-" * col1width, "-" * col2width)
@@ -45,6 +74,12 @@ def object2table(object):
 )
 @click.pass_context
 def cli(ctx, endpoint_url, put_metrics, bucket_name):
+    """
+    Croudtech Bootstrap - Application configuration management CLI.
+
+    Manage application configuration across multiple environments using
+    AWS S3, SSM Parameter Store, and Secrets Manager.
+    """
     # ensure that ctx.obj exists and is a dict (in case `cli()` is called
     # by means other than the `if` block below)
     ctx.ensure_object(dict)
@@ -68,6 +103,7 @@ def cli(ctx, endpoint_url, put_metrics, bucket_name):
 @click.option("--environment-name", help="The environment name", required=True)
 @click.option("--region", default="eu-west-2", help="The AWS region")
 def init(ctx, environment_name, region):
+    """Initialize bootstrap infrastructure by creating the S3 bucket."""
     bootstrap_manager = BootstrapManager(
         prefix=None,
         region=region,
@@ -89,12 +125,13 @@ def init(ctx, environment_name, region):
     "--include-common/--ignore-common",
     default=True,
     is_flag=True,
-    help="Include shared variables",
+    help="Include shared variables from common.yaml",
 )
 @click.option(
     "--output-format",
     default="json",
     type=click.Choice(["json", "yaml", "environment", "environment-export"]),
+    help="Output format for configuration",
 )
 @click.option(
     "--parse-redis-param/--ignore-redis-param",
@@ -112,6 +149,18 @@ def get_config(
     output_format,
     parse_redis_param,
 ):
+    """
+    Retrieve configuration for a specific application and environment.
+
+    Fetches configuration from AWS (S3 and Secrets Manager), merges with
+    common configuration if enabled, and outputs in the specified format.
+
+    Output formats:
+    - json: Pretty-printed JSON
+    - yaml: YAML format
+    - environment: Shell variable format (VAR="value")
+    - environment-export: Shell export format (export VAR="value")
+    """
     bootstrap = BootstrapParameters(
         environment_name=environment_name,
         app_name=app_name,
@@ -146,10 +195,18 @@ def get_config(
     "--delete-first",
     is_flag=True,
     default=False,
-    help="Delete the values in this path before pushing (useful for cleanup)",
+    help="Delete orphaned values before pushing (cleanup mode)",
 )
 @click.argument("values_path")
 def put_config(ctx, prefix, region, delete_first, values_path):
+    """
+    Push local configuration files to AWS.
+
+    Reads YAML configuration from VALUES_PATH and uploads to:
+    - S3: Raw YAML files
+    - SSM Parameter Store: Individual parameters
+    - Secrets Manager: Sensitive values from .secret.yaml files
+    """
     bootstrap_manager = BootstrapManager(
         prefix=prefix,
         region=region,
@@ -170,10 +227,16 @@ def put_config(ctx, prefix, region, delete_first, values_path):
     "--delete-first",
     is_flag=True,
     default=False,
-    help="Delete the values in this path before pushing (useful for cleanup)",
+    help="Delete orphaned values before cleanup",
 )
 @click.argument("values_path")
 def cleanup_secrets(ctx, prefix, region, delete_first, values_path):
+    """
+    Remove orphaned secrets from AWS Secrets Manager.
+
+    Compares local configuration files with remote secrets and removes
+    any secrets that no longer have corresponding local definitions.
+    """
     bootstrap_manager = BootstrapManager(
         prefix=prefix,
         region=region,
@@ -191,6 +254,7 @@ def cleanup_secrets(ctx, prefix, region, delete_first, values_path):
 @click.option("--prefix", default="/appconfig", help="The path prefix")
 @click.option("--region", default="eu-west-2", help="The AWS region")
 def list_apps(ctx, prefix, region):
+    """List all applications stored in S3 across all environments."""
     bootstrap_manager = BootstrapManager(
         prefix=prefix,
         region=region,
