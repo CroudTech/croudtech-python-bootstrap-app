@@ -82,7 +82,7 @@ jobs:
         name: set_python_version
         displayName: Set Python Version
         inputs:
-          versionSpec: '$(python_version)'
+          versionSpec: "$(python_version)"
           addToPath: true
           architecture: x64
       - task: gitversion/setup@0
@@ -96,7 +96,7 @@ jobs:
           export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
-          poetry install          
+          poetry install
           poetry build
           poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
