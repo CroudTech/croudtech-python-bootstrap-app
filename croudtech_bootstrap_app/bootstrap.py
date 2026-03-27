@@ -269,14 +269,14 @@ class BootstrapApp:
 
     def cleanup_secrets(self):
         local_secret_keys = self.convert_flatten(self.local_secrets).keys()
-        remote_secret_keys = self.remote_secret_records.keys()
+        managed_secret_records = self.get_managed_secret_records()
 
         orphaned_secrets = [
-            item for item in remote_secret_keys if re.sub(r"(-[a-zA-Z]{6})$", "", item) not in local_secret_keys
+            item for item in managed_secret_records.keys() if re.sub(r"(-[a-zA-Z]{6})$", "", item) not in local_secret_keys
         ]
 
         for secret in orphaned_secrets:
-            secret_record = self.remote_secrets[secret]
+            secret_record = managed_secret_records[secret]
             self.secrets_client.delete_secret(
                 SecretId=secret_record["ARN"], ForceDeleteWithoutRecovery=True
             )
@@ -383,6 +383,8 @@ class BootstrapApp:
                 Tags=tags
             )
 
+    MANAGED_BY_TAG = {"Key": "ManagedBy", "Value": "croudtech-bootstrap"}
+
     def create_secret(self, Name, SecretString, Tags, ForceOverwriteReplicaSecret):
         print(f"Creating Secret {Name}")
         try:
@@ -392,6 +394,7 @@ class BootstrapApp:
                 Tags=[
                     {"Key": "Environment", "Value": self.environment.name},
                     {"Key": "App", "Value": self.name},
+                    self.MANAGED_BY_TAG,
                 ],
                 ForceOverwriteReplicaSecret=True,
             )
@@ -400,6 +403,21 @@ class BootstrapApp:
                 SecretId=Name,
                 SecretString=SecretString,
             )
+            self._ensure_managed_by_tag(Name)
+
+    def _ensure_managed_by_tag(self, secret_id):
+        """Ensure the ManagedBy tag is present on an existing secret."""
+        try:
+            response = self.secrets_client.describe_secret(SecretId=secret_id)
+            tags = response.get("Tags", [])
+            has_managed_by = any(t["Key"] == "ManagedBy" for t in tags)
+            if not has_managed_by:
+                self.secrets_client.tag_resource(
+                    SecretId=secret_id,
+                    Tags=[self.MANAGED_BY_TAG],
+                )
+        except Exception:
+            logger.debug(f"Could not ensure ManagedBy tag on {secret_id}")
 
     def backoff_with_custom_exception(self, func, exception, message_prefix="", max_attempts=5, base_delay=1, max_delay=10, factor=2, *args, **kwargs):
         attempts = 0
@@ -502,6 +520,17 @@ class BootstrapApp:
             {"Key": "tag-value", "Values": [self.name]},
         ]
 
+    @property
+    def managed_secret_filters(self):
+        return [
+            {"Key": "tag-key", "Values": ["Environment"]},
+            {"Key": "tag-value", "Values": [self.environment.name]},
+            {"Key": "tag-key", "Values": ["App"]},
+            {"Key": "tag-value", "Values": [self.name]},
+            {"Key": "tag-key", "Values": ["ManagedBy"]},
+            {"Key": "tag-value", "Values": ["croudtech-bootstrap"]},
+        ]
+
     def get_remote_ssm_parameters(self):
         paginator = self.ssm_client.get_paginator('describe_parameters')
         parameters = {}
@@ -534,6 +563,19 @@ class BootstrapApp:
         secrets = {}
         response = paginator.paginate(
             Filters=self.remote_secret_filters,
+        )
+        for page in response:
+            for secret in page["SecretList"]:
+                secret_key = os.path.split(secret["Name"])[-1]
+                secrets[secret_key] = secret
+
+        return secrets
+
+    def get_managed_secret_records(self):
+        paginator = self.secrets_client.get_paginator("list_secrets")
+        secrets = {}
+        response = paginator.paginate(
+            Filters=self.managed_secret_filters,
         )
         for page in response:
             for secret in page["SecretList"]:
