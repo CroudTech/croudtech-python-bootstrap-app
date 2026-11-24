@@ -418,8 +418,13 @@ class BootstrapApp:
             return new_value
         try:
             existing = self.secrets_client.get_secret_value(SecretId=name)
-        except botocore.exceptions.ClientError:
-            return new_value
+        except botocore.exceptions.ClientError as err:
+            # Only a genuinely missing secret falls back to a plain overwrite;
+            # any other failure (throttling, KMS, access) must not clobber the
+            # existing blob. Re-raising lets push_secrets retry with backoff.
+            if err.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+                return new_value
+            raise
         existing_obj = self._json_object(existing.get("SecretString"))
         if existing_obj is None:
             return new_value

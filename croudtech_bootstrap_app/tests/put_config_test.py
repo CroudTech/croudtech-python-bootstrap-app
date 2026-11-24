@@ -1,7 +1,9 @@
 import json
 from unittest import mock
 
+import botocore.exceptions
 import click
+import pytest
 
 from croudtech_bootstrap_app.bootstrap import BootstrapManager
 from croudtech_bootstrap_app.tests.bootstrap_test import values_path
@@ -72,3 +74,23 @@ def test_plain_secret_is_overwritten():
     app.environment.manager._secrets_client = client
     app.create_secret("n", "newvalue", [], True)
     assert client.update_secret.call_args.kwargs["SecretString"] == "newvalue"
+
+
+def test_get_secret_error_does_not_overwrite_blob():
+    app = _app()
+    client = _client_with_existing("{}")
+    client.get_secret_value.side_effect = botocore.exceptions.ClientError(
+        {"Error": {"Code": "ThrottlingException"}}, "GetSecretValue"
+    )
+    app.environment.manager._secrets_client = client
+    with pytest.raises(botocore.exceptions.ClientError):
+        app.create_secret("n", json.dumps({"a": "new"}), [], True)
+    client.update_secret.assert_not_called()
+
+
+def test_non_object_json_existing_is_overwritten():
+    app = _app()
+    client = _client_with_existing("[1, 2]")
+    app.environment.manager._secrets_client = client
+    app.create_secret("n", json.dumps({"a": "new"}), [], True)
+    assert json.loads(client.update_secret.call_args.kwargs["SecretString"]) == {"a": "new"}
