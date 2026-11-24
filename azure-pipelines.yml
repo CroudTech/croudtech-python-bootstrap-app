@@ -43,7 +43,6 @@ jobs:
           poetry self add "poetry-pyinstaller-plugin[plugin]<2"
           poetry install
           poetry build
-          poetry config pypi-token.pypi $(pypi_token)
           cp "$(find ./dist/pyinstaller -name croudtech-boostrap -type f | head -n1)" $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
       - task: PublishBuildArtifacts@1
         inputs:
@@ -92,15 +91,17 @@ jobs:
       - task: gitversion/execute@0
         displayName: Use GitVersion
       - script: |
-          set -x
+          set -ex
           export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
-          poetry install          
+          poetry install
           poetry build
           poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
+        env:
+          POETRY_PYPI_TOKEN_PYPI: $(pypi_token)
       - template: release/github-release.yaml@templates
         parameters:
           semVer: $(GitVersion.SemVer)
