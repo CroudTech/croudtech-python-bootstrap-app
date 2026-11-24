@@ -43,7 +43,6 @@ jobs:
           poetry self add "poetry-pyinstaller-plugin[plugin]<2"
           poetry install
           poetry build
-          poetry config pypi-token.pypi $(pypi_token)
           cp "$(find ./dist/pyinstaller -name croudtech-boostrap -type f | head -n1)" $(Build.ArtifactStagingDirectory)/croudtech-bootstrap-debian-bullseye
       - task: PublishBuildArtifacts@1
         inputs:
