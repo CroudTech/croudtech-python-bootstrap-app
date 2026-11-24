@@ -146,7 +146,7 @@ def get_config(
     "--delete-first",
     is_flag=True,
     default=False,
-    help="Delete the values in this path before pushing (useful for cleanup)",
+    help="Also delete SSM parameters and Secrets Manager secrets not present in the config (destructive; off by default)",
 )
 @click.argument("values_path")
 def put_config(ctx, prefix, region, delete_first, values_path):
