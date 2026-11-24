@@ -705,10 +705,10 @@ class BootstrapManager:
             self.click.secho(f"S3 Client Error {err}", bg="red", fg="white")
 
     def put_config(self, delete_first=False):
-        self.cleanup_ssm_parameters()
         if delete_first:
             # Destructive: only on explicit request. By default put-config
-            # never deletes secrets that are absent from the config.
+            # never deletes parameters/secrets that are absent from the config.
+            self.cleanup_ssm_parameters()
             self.cleanup_secrets()
         for _environment_name, environment in self.environments.items():
             for _app_name, app in environment.apps.items():

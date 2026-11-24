@@ -15,7 +15,7 @@ def manager():
 
 def test_put_config_does_not_delete_secrets_by_default():
     m = manager()
-    with mock.patch.object(m, "cleanup_ssm_parameters"), mock.patch.object(
+    with mock.patch.object(m, "cleanup_ssm_parameters") as ssm, mock.patch.object(
         m, "cleanup_secrets"
     ) as cleanup, mock.patch(
         "croudtech_bootstrap_app.bootstrap.BootstrapApp.upload_to_s3", create=True
@@ -26,11 +26,12 @@ def test_put_config_does_not_delete_secrets_by_default():
     ):
         m.put_config()
     cleanup.assert_not_called()
+    ssm.assert_not_called()
 
 
 def test_put_config_delete_first_opts_in_to_cleanup():
     m = manager()
-    with mock.patch.object(m, "cleanup_ssm_parameters"), mock.patch.object(
+    with mock.patch.object(m, "cleanup_ssm_parameters") as ssm, mock.patch.object(
         m, "cleanup_secrets"
     ) as cleanup, mock.patch(
         "croudtech_bootstrap_app.bootstrap.BootstrapApp.upload_to_s3", create=True
@@ -41,6 +42,7 @@ def test_put_config_delete_first_opts_in_to_cleanup():
     ):
         m.put_config(delete_first=True)
     cleanup.assert_called_once()
+    ssm.assert_called_once()
 
 
 def _app():
