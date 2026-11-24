@@ -398,8 +398,32 @@ class BootstrapApp:
         except self.secrets_client.exceptions.ResourceExistsException:
             self.secrets_client.update_secret(
                 SecretId=Name,
-                SecretString=SecretString,
+                SecretString=self.merge_json_secret(Name, SecretString),
             )
+
+    @staticmethod
+    def _json_object(value):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    def merge_json_secret(self, name, new_value):
+        """If both the existing secret and the new value are JSON objects,
+        merge the new keys into the existing blob (preserving unknown keys,
+        e.g. refresh tokens written by apps). Otherwise return new_value."""
+        new_obj = self._json_object(new_value)
+        if new_obj is None:
+            return new_value
+        try:
+            existing = self.secrets_client.get_secret_value(SecretId=name)
+        except botocore.exceptions.ClientError:
+            return new_value
+        existing_obj = self._json_object(existing.get("SecretString"))
+        if existing_obj is None:
+            return new_value
+        return json.dumps({**existing_obj, **new_obj})
 
     def backoff_with_custom_exception(self, func, exception, message_prefix="", max_attempts=5, base_delay=1, max_delay=10, factor=2, *args, **kwargs):
         attempts = 0
@@ -675,9 +699,12 @@ class BootstrapManager:
         except Exception as err:
             self.click.secho(f"S3 Client Error {err}", bg="red", fg="white")
 
-    def put_config(self, delete_first):
+    def put_config(self, delete_first=False):
         self.cleanup_ssm_parameters()
-        self.cleanup_secrets()
+        if delete_first:
+            # Destructive: only on explicit request. By default put-config
+            # never deletes secrets that are absent from the config.
+            self.cleanup_secrets()
         for _environment_name, environment in self.environments.items():
             for _app_name, app in environment.apps.items():
                 # pass
