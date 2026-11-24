@@ -40,7 +40,7 @@ jobs:
           set -x
           export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
-          poetry self add "poetry-pyinstaller-plugin[plugin]"
+          poetry self add "poetry-pyinstaller-plugin[plugin]<2"
           poetry install
           poetry build
           poetry config pypi-token.pypi $(pypi_token)
