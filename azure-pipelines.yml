@@ -92,12 +92,13 @@ jobs:
       - task: gitversion/execute@0
         displayName: Use GitVersion
       - script: |
-          set -x
+          set -ex
           export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
-          poetry install          
+          poetry install
           poetry build
+          poetry config pypi-token.pypi $(pypi_token)
           poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
