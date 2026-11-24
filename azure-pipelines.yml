@@ -38,7 +38,7 @@ jobs:
     steps:
       - script: |
           set -x
-          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
+          export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
           poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
@@ -58,7 +58,7 @@ jobs:
     steps:
       - script: |
           set -x
-          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
+          export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
           poetry self add "poetry-pyinstaller-plugin[plugin]"
           poetry install
@@ -93,7 +93,7 @@ jobs:
         displayName: Use GitVersion
       - script: |
           set -x
-          export PATH=$PATH:/home/vsts_azpcontainer/.local/bin
+          export PATH=$PATH:$HOME/.local/bin
           pip install pipx && pipx install poetry
           poetry version $(GitVersion.SemVer)
           poetry install          
