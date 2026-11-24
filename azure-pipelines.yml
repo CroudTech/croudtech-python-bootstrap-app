@@ -98,10 +98,11 @@ jobs:
           poetry version $(GitVersion.SemVer)
           poetry install
           poetry build
-          poetry config pypi-token.pypi $(pypi_token)
           poetry publish
           cp $(Pipeline.Workspace)/croudtech-bootstrap/croudtech-bootstrap $(Build.ArtifactStagingDirectory)
           cp $(Pipeline.Workspace)/croudtech-bootstrap-debian-bullseye/croudtech-bootstrap-debian-bullseye $(Build.ArtifactStagingDirectory)
+        env:
+          POETRY_PYPI_TOKEN_PYPI: $(pypi_token)
       - template: release/github-release.yaml@templates
         parameters:
           semVer: $(GitVersion.SemVer)
